@@ -101,7 +101,7 @@ void create_PFs_random(void *addr, unsigned long length) {
 	for (long int i = 0; i < array_length; i++)
 		array[i] = start_addr + i * 4096;
 	shuffle(array, array_length);
-	for (i = 0; i < array_length; i++)
+	for (long int i = 0; i < array_length; i++)
 		*(array[i]) = rand();
 }
 
@@ -110,12 +110,12 @@ int main(void) {
 	pid_t current_pid = getpid();
 	int buf_len = 16*1024*1024; // 16MB stats buffer
 	char *stats_buf = (char *)malloc(buf_len*sizeof(char));
-	FILE *out_file = fopen("defrag_stats.ou", "w");
+	FILE *out_file = fopen("defrag_stats.dat", "w");
 	printf("Process PID : %d\n", current_pid);
 	// enable capaging
 	enable_capaging(current_pid);
 	// enable defragging
-	scan_process_memory(current_pid, buf, buf_len, MEM_DEFRAG_MARK_SCAN_ALL, NULL);
+	scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_MARK_SCAN_ALL, NULL);
 	//
 	//
 	unsigned long length = 256 * 1024 * 1024;
@@ -124,7 +124,7 @@ int main(void) {
 	create_PFs_random(addr, length);
 	printf("Press Enter for defrag to start!\n");
 	getchar();
-	scan_process_memory(current_pid, buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
+	scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
 	// scan_process_memory(current_pid, NULL, 0, MEM_DEFRAG_DEFRAG, out_file);
 	fclose(out_file);
 	printf("Press Enter to exit...\n");
