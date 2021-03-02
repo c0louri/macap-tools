@@ -82,36 +82,17 @@ static bool is_directory(const char *dirname)
 
 }
 
-// is_wholly_numeric() --
-static bool is_wholly_numeric(const char *str)
-{
-    assert(str != NULL);
-
-    while (*str != '\0')
-    {
-        if (!isdigit(*str))
-        {
-            return FALSE;
-        }
-        str++;
-    }
-    return TRUE;
-
-}
-
-
 void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, bool is_thp) {
     if (pfn == 0) // page not present
-        fprintf(out,  "0x%-16lx : pfn -1 ,offset : %lld 0 not_present\n", vaddr);
+        fprintf(out,  "0x%-16lx :pfn -1 ,offset 0 not_present\n", vaddr);
     else {
-        long long offset = vaddr>>PAGE_SHIFT - pfn;
+        long long offset = (vaddr>>PAGE_SHIFT) - pfn;
         if (is_thp)
-            fprintf(out, "0x%-16lx : pfn %-16lx ,offset : %lld thp\n", vaddr, pfn, offset);
+            fprintf(out, "0x%-16lx :pfn %-16lx ,offset %lld thp\n", vaddr, pfn, offset);
         else
-            fprintf(out, "0x%-16lx : pfn %-16lx ,offset : %lld  no_thp\n", vaddr, pfn, offset);
+            fprintf(out, "0x%-16lx :pfn %-16lx ,offset %lld  no_thp\n", vaddr, pfn, offset);
     }
 }
-
 
 // usage() --
 static void usage(void)
@@ -136,13 +117,11 @@ int main(int argc, char *argv[])
     FILE *out = NULL;
     int retval = 0;
     int c;
-    char *out_name = OUT_NAME;
+    char *out_name = "./page-collect.dat";
     pid_t opt_pid = 0;	/* process to walk */
 
     uint64_t total_present_pages = 0;
-
     // std::map<uint64_t, uint64_t> Offsets;
-
     // Process command-line arguments.
     while ((c = getopt_long(argc, argv, "o:f:p:h", opts, NULL)) != -1) {
         switch (c) {
