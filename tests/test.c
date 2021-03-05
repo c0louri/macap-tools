@@ -17,7 +17,7 @@
 #define PROT_FLAGS 		PROT_READ|PROT_WRITE
 #define MAPPING_FLAGS 	MAP_ANONYMOUS|MAP_PRIVATE
 
-void scan_process_memory(pid_t pid, int action, char *buf, int buf_len, FILE *out) {
+int scan_process_memory(pid_t pid, char *buf, int buf_len, int action, FILE *out) {
 	int res = 0;
 	if (buf) {
 		memset(buf, 0, buf_len);
@@ -25,13 +25,13 @@ void scan_process_memory(pid_t pid, int action, char *buf, int buf_len, FILE *ou
 	switch (action) {
 		case MEM_DEFRAG_MARK_SCAN_ALL:
 			printf("Marking process for defrag!\n");
-			res = syscall(DEFRAG_SYSCALL, pid, NULL, 0, MEM_DEFRAG_MARK_SCAN_ALL);
+			res = syscall(DEFRAG_SYSCALL, 0, NULL, 0, MEM_DEFRAG_MARK_SCAN_ALL);
 			break;
 		case MEM_DEFRAG_SCAN:
 			break;
 		case MEM_DEFRAG_DEFRAG:
 			printf("Defrag started...");
-			res = syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG);
+			res = syscall(DEFRAG_SYSCALL, 0, buf, buf_len, MEM_DEFRAG_DEFRAG);
 			printf("Defragging done!");
 			break;
 		case MEM_DEFRAG_CLEAR_SCAN_ALL:
@@ -52,8 +52,6 @@ void enable_capaging(pid_t pid) {
 	syscall(CAPAGING_SYSCALL, NULL, 0, 0);
 }
 
-
-
 void *allocate_big_anon(long int length, int prot_flags, int map_flags, int use_huge) {
 	void *addr = mmap(NULL, length, prot_flags, map_flags, -1, 0);
 	if (use_huge) {
@@ -63,70 +61,74 @@ void *allocate_big_anon(long int length, int prot_flags, int map_flags, int use_
 	return addr;
 }
 
-create_PFs_in_region(void *addr, unsigned long length) {
-	printf("Provoking PFs in a linear way...\n");
+void create_PFs(void *addr, unsigned long length) {
+	/* UNTESTED function */
+    printf("Provoking PFs in a linear way...\n");
 	time_t t;
 	srand((unsigned) time(&t));
 	char *i = (char *)addr;
-	for(; i < (char *)addr + length - 8; i += 512*4096 + 4096)
-		*((unsigned long *)i) = rand();
-	for(; i < (char *)addr + length - 8; i += 8*4096)
-		*((unsigned long *)i) = rand();
-	for(; i < (char *)addr + length - 8; i += 4096)
-		*((unsigned long *)i) = rand();
+	//for(; i < (char *)addr + length - 8; i += 512*4096 + 4096)
+	//	*((unsigned long *)i) = rand();
+	//for(; i < (char *)addr + length - 8; i += 8*4096)
+	//	*((unsigned long *)i) = rand();
+	for(; i < (char *)addr + length; i += 2048)
+		*i = rand() % 256;
 }
 
 void shuffle(unsigned long **array, size_t n) {
+    printf("Shuffling address for PFs\n");
 	time_t t;
 	srand(12345678);
 	if (n > 1) {
 		size_t i;
 		for (i = 0; i < n-1; i++) {
 			size_t j = i + rand() / (RAND_MAX/(n-i) +1);
-			int t = array[j];
+			unsigned long *t = array[j];
 			array[j] = array[i];
 			array[i] = t;
 		}
 	}
+    printf("Shuffling is done\n");
 }
 
 void create_PFs_random(void *addr, unsigned long length) {
 	printf("Provoking PFs at random pages of region starting at %p\n", addr);
 	time_t t;
 	srand((unsigned) time(&t));
-	unsigned long *start_addr = (unsigned long *)addr;
-	unsigned long **array;
-	long int array_length = length / 4096; // length >> 12
-	array = (unsigned long *)malloc((array_length) * sizeof(unsigned long *));
-	for (long int i = 0; i < array_length; i++)
-		array[i] = start_addr + i * 4096;
+	unsigned long **array = NULL;
+	size_t array_length = length >> 12; // length / 4096
+	array = (unsigned long **)malloc(array_length * sizeof(unsigned long *));
+	for (size_t i = 0; i < array_length; i++)
+		array[i] = (unsigned long *)((char *)addr + i * 4096);
 	shuffle(array, array_length);
-	for (long int i = 0; i < array_length; i++)
+	for (size_t i = 0; i < array_length; i++)
 		*(array[i]) = rand();
+    free(array);
 }
 
 
 int main(void) {
 	pid_t current_pid = getpid();
-	int buf_len = 16*1024*1024; // 16MB stats buffer
+	long int buf_len = 512*1024; // 16MB stats buffer
 	char *stats_buf = (char *)malloc(buf_len*sizeof(char));
 	FILE *out_file = fopen("defrag_stats.dat", "w");
 	printf("Process PID : %d\n", current_pid);
-	// enable capaging
-	enable_capaging(current_pid);
 	// enable defragging
 	scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_MARK_SCAN_ALL, NULL);
+	// enable capaging
+	enable_capaging(current_pid);
 	//
 	//
-	unsigned long length = 256 * 1024 * 1024;
+	unsigned long length = 32 * 1024 * 1024;
 	void *addr = allocate_big_anon(length, PROT_FLAGS, MAPPING_FLAGS, 1);
 	getchar();
-	create_PFs_random(addr, length);
-	printf("Press Enter for defrag to start!\n");
+	//create_PFs_random(addr, length);
+	create_PFs(addr, length);
+    printf("Press Enter for defrag to start!\n");
 	getchar();
-	scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
-	// scan_process_memory(current_pid, NULL, 0, MEM_DEFRAG_DEFRAG, out_file);
-	fclose(out_file);
+	int res = scan_process_memory(current_pid, NULL, 0, MEM_DEFRAG_DEFRAG, out_file);
+	getchar();
+    fclose(out_file);
 	printf("Press Enter to exit...\n");
 	return 0;
 }

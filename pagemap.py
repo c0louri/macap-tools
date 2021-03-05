@@ -3,7 +3,7 @@
 import sys
 
 def find_vma(VMAs, addr):
-	if addr is str:
+	if type(addr) is str:
 		addr = int(addr, 16)
 	for vma in VMAs.values():
 		if addr >= vma.start and addr < vma.end:
@@ -27,9 +27,9 @@ class VMA(object):
 		self.inode = ino
 		self.pathname = pathname
 		if pathname is None:
-			is_anonymous = True
+			self.is_anonymous = True
 		else:
-			is_anonymous = False
+			self.is_anonymous = False
 		self.subVMAs = sorted(anchors, key=lambda x:x[0])
 
 	def print_info(self):
@@ -37,13 +37,13 @@ class VMA(object):
 			msg = '0x{:x}-0x{:x} {} anon'.format(self.start, self.end, self.region_type)
 		else:
 			msg = '0x{:x}-0x{:x} {} {}'.format(self.start, self.end, self.region_type, self.pathname)
+		print(msg)
 		if len(self.subVMAs) > 0:
 			self.print_subVMAs()
-		print(msg)
 
 	def print_subVMAs(self):
-		for svma in subVMAs:
-			print('vaddr: 0x{:x} ,pfn: 0x{:x} ,offset: {}'.format(svma[0], svma[1], svma[2]))
+		for svma in self.subVMAs:
+			print('    vaddr: 0x{:x} ,pfn: 0x{:x} ,offset: {}'.format(svma[0], svma[1], svma[2]))
 
 	def find_subVMAs_by_offset(self, offset):
 		res = []
@@ -53,15 +53,27 @@ class VMA(object):
 		return res
 
 	def find_target_subVMA(self, addr):
-		if addr is str:
+		if type(addr) is str:
 			addr = int(addr, 16)
 		# check if vma contains this vaddr
 		if addr < self.start or addr >= self.end:
 			return None
-		for svma in self.subVMAs:
-			if addr >= svma[0]:
-				return svma
-		return None
+		if len(self.subVMAs) == 0:
+			return None
+		else:
+			if addr < self.subVMAs[0][0]:
+				# if addr smaller than 1st subvma, return 1st subvma
+				return self.subVMAs[0]
+			elif addr >= self.subVMAs[-1][0]:
+				# if addr larget than last subvma, return last subvma
+				return self.subVMAs[-1]
+			else:
+				# addr is between 2 subVMAs
+				i = 0
+				while i < len(self.subVMAs)-1:
+					if self.subVMAs[i][0] <= addr < self.subVMAs[i+1][0]:
+						return self.subVMAs[i]
+					i += 1
 
 	def vaddr_in_right_subVMA(self, addr, offset):
 		# find subVMA in which addr should be
@@ -88,7 +100,7 @@ def create_vma_object(line, anchor_lines=[]):
 	# preprocessing of vma line
 	parts = line.split()
 	address, perms, offset, dev, inode = parts[:5]
-	offset, inode = int(offset), int(inode)
+	offset, inode = int(offset, 16), int(inode)
 	if 'p' in perms: # vma is MAP_PRIVATE
 		region_type = 'private'
 	elif 's' in perms: # vma is MAP_SHARED
@@ -109,8 +121,8 @@ def create_vma_object(line, anchor_lines=[]):
 	# preprocession of anchor lines
 	anchors = []
 	for a_l in anchor_lines:
-		parts = [part.strip('\s') for part in line.split()]   # if doesnt work then replace '\s' with ' \t'
-		# 2nd element is vaddr, 4th is pfn ,off
+		parts = [part.strip('\s') for part in a_l.split()]   # if doesnt work then replace '\s' with ' \t'
+		# 2nd element is vaddr, 4th is pfn ,offset is 6th
 		anchors.append( ( int(parts[1], 16), int(parts[3], 16), int(parts[5]) ) )
 	return VMA(vm_start, vm_end, perms, offset, dev, inode, pathname, anchors)
 
@@ -119,26 +131,25 @@ def create_all_vma(lines, anchors=False):
 	checking_anchors = False
 	pre_vmas = []
 	i = 0
-	vma = []
 	st, end = 0, 0
-	anchor_lines = []
+	anchor_lines, vma_line = [], ""
 	while i < len(lines):
 		if not lines[i].startswith((' ', '\t')):
 			# it is a vma line
-			vma = lines[i]
+			vma_line = lines[i]
 			st, end = lines[i].split()[0].split('-')
 		else:
 			# it is an line about anchor
 			if anchors:
 				anchor_lines.append(lines[i])
 		if (i+1 == len(lines)) or (not lines[i+1].startswith((' ', '\t'))):
-			pre_vmas.append([(st,end), vma, anchor_lines])
-			anchor_lines = []
+			pre_vmas.append([(st,end), vma_line, anchor_lines])
+			vma_line, anchor_lines = "", []
 		i = i + 1
 	vmas = {}
 	for vma in pre_vmas:
 		vma_obj = create_vma_object(vma[1], vma[2])
-		vmas[(int(vma[0][0]), int(vma[0][1]))] = vma_obj
+		vmas[(int(vma[0][0], 16), int(vma[0][1], 16))] = vma_obj
 	return vmas
 
 
@@ -169,18 +180,17 @@ def read_custom_pagemap(pagemap_file, VMAs) :
 		lines = [line.rstrip('\n') for line in map_file]
 	total_present_pages = 0
 	total_not_present_pages = 0
-	present_pages = []
+	pages = []
 	for line in lines:
 		if line.startswith('0x'):
-			parts = [part.strip('\s') for part in line.strip()]
+			parts = [part.strip('\s') for part in line.split()]
 			vaddr = int(parts[0], 16)
 			pfn = int(parts[2], 16)
 			offset = int(parts[4])
 			page_type = parts[5]
-			#
 			if page_type == 'not_present':
 				total_not_present_pages += 1
-				present_pages.append((vaddr, None, None, 0, None))
+				pages.append((vaddr, None, None, 0, None))
 			elif 'thp' in page_type:
 				# check if it is in subVMA and has the offset of the vma
 				vma = find_vma(VMAs, vaddr)
@@ -190,18 +200,18 @@ def read_custom_pagemap(pagemap_file, VMAs) :
 				is_right_placed, svma = vma.vaddr_in_right_subVMA(vaddr, offset)
 				if page_type == 'no_thp' :
 					total_present_pages += 1
-					present_pages.append((vaddr, pfn, offset, 1, is_right_placed))
+					pages.append((vaddr, pfn, offset, 1, is_right_placed))
 				elif page_type == 'thp':
 					total_present_pages += 512
-					present_pages.append((vaddr, pfn, offset, 512, is_right_placed))
+					pages.append((vaddr, pfn, offset, 512, is_right_placed))
 				else:
 					print("This shouldn\'t happen1!! ", line)
 					exit()
 			else:
 				print("This shouldn\'t happen2!! ", line)
 				exit()
-	present_pages = sorted(present_pages, lambda x: x[0])
-	return present_pages, total_present_pages, total_not_present_pages
+	pages = sorted(pages, key=lambda x: x[0])
+	return pages, total_present_pages, total_not_present_pages
 
 """
 pagemap : it should be the return list of read_custom_pagemap()
@@ -214,17 +224,23 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 	# which are part of a subvma AND have the offset of the subvma
 	# 2nd counter is the number of pages which have the offset but not in the right subvma
 	offsets = {}
-	# page_good_offset and pages_bad_offset are tuples with 1st element the number of
+	# page_good_offset and pages_bad_offset are list(pair)  with 1st element the number of
 	# pages in good and bad offset respectively and in the 2nd element a list of those
 	# vaddr in each occassion
-	pages_good_offset = (0, [])
-	pages_bad_offset = (0, [])
+	pages_good_offset = [0, []]
+	pages_bad_offset = [0, []]
+	total_pres_p_in_subvmas = 0
+	total_not_pres_p_in_subvmas = 0
+	total_good_thp = 0
+	total_bad_thp = 0
 	for entry in pagemap:
 		vaddr, pfn, offset, num_pages, is_right_placed = entry
 		# if not present, continue to next entry
 		if (pfn is None) or (pfn <= 0):
 			continue
 		vma = find_vma(VMAs, vaddr)
+		if len(vma.subVMAs) > 0:
+			total_pres_p_in_subvmas += num_pages
 		# if no subvmas in vma and if it should check only vaddr in vmas with subvmas,
 		# continue to the next vaddr
 		if check_only_vmas_with_subvmas and (vma.subVMAs == []):
@@ -234,9 +250,9 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 		# right placed...
 		if offset not in offsets.keys():
 			if is_right_placed:
-				offsets[offset] = (num_pages, 0)
+				offsets[offset] = [num_pages, 0]
 			else:
-				offsets[offset] = (0, num_pages)
+				offsets[offset] = [0, num_pages]
 		else:
 			# offset is already in keys
 			if is_right_placed:
@@ -244,14 +260,18 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 			else:
 				offsets[offset][1] += num_pages
 		# update pages_***_offset tuples:
-		if in_right_placed:
-			pages_bad_offset[0] += num_pages
-			pages_bad_offset[1].append(vaddr)
-		else:
+		if is_right_placed:
 			pages_good_offset[0] += num_pages
 			pages_good_offset[1].append(vaddr)
+			if num_pages == 512:
+				total_good_thp += 1
+		else:
+			pages_bad_offset[0] += num_pages
+			pages_bad_offset[1].append(vaddr)
+			if num_pages == 512:
+				total_bad_thp += 1
 
-	return offsets, pages_good_offset, pages_bad_offset
+	return offsets, pages_good_offset, pages_bad_offset, total_pres_p_in_subvmas
 
 
 def compare_pagemap(old_pagemap_file, new_pagemap_file, VMAs):
@@ -262,14 +282,14 @@ def compare_pagemap(old_pagemap_file, new_pagemap_file, VMAs):
 	#print(offsets_1)
 	#print(offsets_2)
 	print('1st pagemap statistics:')
-	print('Present pages: ', cnt_pres1)
-	print('Not present pages: ',cnt_not_pres1)
+	print('Present pages: ', cnt_pres_1)
+	print('Not present pages: ',cnt_not_pres_1)
 	print('Good-offset pages: ', good_p_1[0])
 	print('Bad-offset pages: ', bad_p_1[0])
 	# 2nd pagemap
 	print('2nd pagemap statistics:')
-	print('Present pages: ', cnt_pres1)
-	print('Not present pages: ',cnt_not_pres1)
+	print('Present pages: ', cnt_pres_1)
+	print('Not present pages: ',cnt_not_pres_1)
 	print('Good-offset pages: ', good_p_1[0])
 	print('Bad-offset pages: ', bad_p_1[0])
 
@@ -282,15 +302,17 @@ def print_pagemap_list(pagemap):
 
 def main():
 	args_number = len(sys.argv)
-	args = str(sys.argv)
+	args = sys.argv
 	anchors = False
 	pagemap_file_from_cpp = ""
 	if args_number == 2:
-		pid = int(args[1])
+        	pid = int(args[1])
 	elif args_number == 3:
 		pid, anchors = int(args[1]), bool(int(args[2]))
 	elif args_number == 4:
-		pid, anchors, pagemap_file_from_cpp = int(args[1]), bool(int(args[2])), args[3]
+		pid = int(args[1])
+		anchors = bool(int(args[2]))
+		pagemap_file_from_cpp = args[3]
 	else:
 		print('#args = 2 : needs as argument PID, then only prints VMA')
 		print('#args = 3 : arguments= PID, 1 (if anchors enabled)')
@@ -299,14 +321,20 @@ def main():
 	VMAs = read_vmas(pid, anchors)
 	if anchors and (pagemap_file_from_cpp != ""):
 		custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_file_from_cpp, VMAs)
-		offsets, good_p, bad_p = create_offset_map(custom_pagemap, VMAs, True)
-		print('1st pagemap statistics:')
-		print('Present pages: ', cnt_pres1)
-		print('Not present pages: ',cnt_not_pres1)
-		print('Good-offset pages: ', good_p_1[0])
-		print('Bad-offset pages: ', bad_p_1[0])
+		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+		print('Pagemap statistics:')
+		print('Present pages: ', cnt_pres)
+		print('Not present pages: ',cnt_not_pres)
+		print("~~~~~")
+		print('Total present pages in subVMAs: ', total_pres_svma)
+		print('Good-offset pages: ', good_p[0])
+		print('Bad-offset pages: ', bad_p[0])
 	else:
 		# print info for VMA
 		for vma in VMAs.values():
 			vma.print_info()
+
+
+if __name__ == "__main__":
+    main()
 

@@ -1,4 +1,4 @@
-program_NAME := page-collect
+program_NAME := page-collect.run
 
 program_C_SRCS := $(wildcard *.c)
 program_CXX_SRCS := $(wildcard *.cpp)
