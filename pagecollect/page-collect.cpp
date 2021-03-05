@@ -112,6 +112,7 @@ int main(int argc, char *argv[])
 {
     int n;
     FILE *m   = NULL;
+    FILE *am  = NULL;
     int pm    = -1;
     int kflags = -1;
     FILE *out = NULL;
@@ -162,7 +163,7 @@ int main(int argc, char *argv[])
     char m_name[FILENAMELEN];
     char pm_name[FILENAMELEN];
     char kflags_name[FILENAMELEN];
-    // char am_name[FILENAMELEN];
+    char am_name[FILENAMELEN];
     char line[LINELEN];
 
     //Open pid/maps file for reading.
@@ -194,6 +195,22 @@ int main(int argc, char *argv[])
         goto done;
     }
 
+    //Open pid/anchormaps for reading
+    sprintf(am_name, "%s/%s", d_name, ANCHOR_MAPS_NAME);
+    am = fopen(am_name, "r");
+    if (am == NULL)
+    {
+        ERR("Unable to open \"%s\" for reading (errno=%d) (5).\n", am_name, errno);
+        exit(-1);
+    }
+    while(fgets(line, LINELEN, am) != NULL)
+    {
+        fputs(line, out);
+    }
+    if (m != NULL) {
+        fclose(m);
+    }
+    fputs("~!~\n", out);
     // START implementation
     // For each line in the maps file...
     while (fgets(line, LINELEN, m) != NULL)

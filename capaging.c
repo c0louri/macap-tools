@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <sys/types.h>
-#include <unistd.h> 
+#include <unistd.h>
 #include <libgen.h>
 #include <sys/wait.h>
 
@@ -13,7 +13,7 @@ void main (int argc, char* argv[])
 	int status;
 	int ret = 0;
         char *process_names[1];
-	
+
 	if(argc < 2)
 	{
 		printf("Usage: ./capaging <name | pid | command | help> {arguments}\n");

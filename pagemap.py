@@ -95,6 +95,16 @@ def read_vma_map(pid, anchors=False):
 		return lines
 	return None
 
+def read_vma_pagemap_file(filename):
+	with open(filename, 'r') as f:
+		lines = [line.rstrip('\n') for line in f]
+		# split lines list because it contains info for vma and pagemap
+		i = 0
+		while not lines[i].startswith("~!~"):
+			i += 1
+	return lines[ : i], lines[i+1 : ]
+
+###############################
 
 def create_vma_object(line, anchor_lines=[]):
 	# preprocessing of vma line
@@ -171,13 +181,20 @@ Returns a tuple:
 	Total present pages in custom pagemap
 3rd element:
 	 Total not present pages in custom pagemap
-
-
 """
-def read_custom_pagemap(pagemap_file, VMAs) :
+def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 	lines = []
-	with open(pagemap_file, 'r') as map_file:
-		lines = [line.rstrip('\n') for line in map_file]
+	if read_file:
+		if type(read_file) is not str:
+			print("read_custom_pagemap : 1st parameter must be a file name (str)!")
+			exit()
+		with open(pagemap_file_or_lines, 'r') as map_file:
+			lines = [line.rstrip('\n') for line in map_file]
+	else:
+		if type(pagemap_file_or_lines) is not list:
+			print("read_custom_pagemap : 1st parameter must pagemap_file_from_cppbe a list of strings!")
+			exit()
+		lines = pagemap_file_or_lines
 	total_present_pages = 0
 	total_not_present_pages = 0
 	pages = []
@@ -300,39 +317,61 @@ def print_pagemap_list(pagemap):
 
 
 
+# def main():
+# 	args_number = len(sys.argv)
+# 	args = sys.argv
+# 	anchors = False
+# 	pagemap_file_from_cpp = ""
+# 	if args_number == 2:
+#         	pid = int(args[1])
+# 	elif args_number == 3:
+# 		pid, anchors = int(args[1]), bool(int(args[2]))
+# 	elif args_number == 4:
+# 		pid = int(args[1])
+# 		anchors = bool(int(args[2]))
+# 		pagemap_file_from_cpp = args[3]
+# 	else:
+# 		print('#args = 2 : needs as argument PID, then only prints VMA')
+# 		print('#args = 3 : arguments= PID, 1 (if anchors enabled)')
+# 		print('#args = 4 : PID 1 <pagemap_file_name>')
+# 		exit()
+# 	VMAs = read_vmas(pid, anchors)
+# 	if anchors and (pagemap_file_from_cpp != ""):
+# 		custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_file_from_cpp, VMAs)
+# 		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+# 		print('Pagemap statistics:')
+# 		print('Present pages: ', cnt_pres)
+# 		print('Not present pages: ',cnt_not_pres)
+# 		print("~~~~~")
+# 		print('Total present pages in subVMAs: ', total_pres_svma)
+# 		print('Good-offset pages: ', good_p[0])
+# 		print('Bad-offset pages: ', bad_p[0])
+# 	else:
+# 		# print info for VMA
+# 		for vma in VMAs.values():
+# 			vma.print_info()
+
+
+# main for compined vma and pagemap lines
 def main():
 	args_number = len(sys.argv)
 	args = sys.argv
-	anchors = False
-	pagemap_file_from_cpp = ""
 	if args_number == 2:
-        	pid = int(args[1])
-	elif args_number == 3:
-		pid, anchors = int(args[1]), bool(int(args[2]))
-	elif args_number == 4:
-		pid = int(args[1])
-		anchors = bool(int(args[2]))
-		pagemap_file_from_cpp = args[3]
+		file_from_cpp = args[1]
 	else:
-		print('#args = 2 : needs as argument PID, then only prints VMA')
-		print('#args = 3 : arguments= PID, 1 (if anchors enabled)')
-		print('#args = 4 : PID 1 <pagemap_file_name>')
+		print('It needs a single parameter: the name of te file created by page-collect.run')
 		exit()
-	VMAs = read_vmas(pid, anchors)
-	if anchors and (pagemap_file_from_cpp != ""):
-		custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_file_from_cpp, VMAs)
-		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
-		print('Pagemap statistics:')
-		print('Present pages: ', cnt_pres)
-		print('Not present pages: ',cnt_not_pres)
-		print("~~~~~")
-		print('Total present pages in subVMAs: ', total_pres_svma)
-		print('Good-offset pages: ', good_p[0])
-		print('Bad-offset pages: ', bad_p[0])
-	else:
-		# print info for VMA
-		for vma in VMAs.values():
-			vma.print_info()
+	vma_lines, pagemap_lines = read_vma_pagemap_file(file_from_cpp)
+	VMAs = create_all_vma(vma_lines, True)
+	custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
+	offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+	print('Pagemap statistics:')
+	print('Present pages: ', cnt_pres)
+	print('Not present pages: ',cnt_not_pres)
+	print("~~~~~")
+	print('Total present pages in subVMAs: ', total_pres_svma)
+	print('Good-offset pages: ', good_p[0])
+	print('Bad-offset pages: ', bad_p[0])
 
 
 if __name__ == "__main__":
