@@ -207,8 +207,8 @@ int main(int argc, char *argv[])
     {
         fputs(line, out);
     }
-    if (m != NULL) {
-        fclose(m);
+    if (am != NULL) {
+        fclose(am);
     }
     fputs("~!~\n", out);
     // START implementation

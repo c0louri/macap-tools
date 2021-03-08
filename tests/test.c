@@ -109,7 +109,7 @@ void create_PFs_random(void *addr, unsigned long length) {
 
 int main(void) {
 	pid_t current_pid = getpid();
-	long int buf_len = 512*1024; // 16MB stats buffer
+	long int buf_len = 1*1024*1024; // 1MB stats buffer
 	char *stats_buf = (char *)malloc(buf_len*sizeof(char));
 	FILE *out_file = fopen("defrag_stats.dat", "w");
 	printf("Process PID : %d\n", current_pid);
@@ -126,7 +126,7 @@ int main(void) {
 	create_PFs(addr, length);
     printf("Press Enter for defrag to start!\n");
 	getchar();
-	int res = scan_process_memory(current_pid, NULL, 0, MEM_DEFRAG_DEFRAG, out_file);
+	int res = scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
 	getchar();
     fclose(out_file);
 	printf("Press Enter to exit...\n");
