@@ -2,8 +2,8 @@
 #ifndef __page_collect_h__
 #define __page_collect_h__
 
-
-
+#include <sys/types.h>
+#include <unistd.h>
 
 // start - compile time options
 
@@ -97,6 +97,7 @@
 #define BIT(name)		(1ULL << KPF_##name)
 #define CMP_BIT(nr, bit) ((nr) & (1<<(bit)))
 
+int collect_custom_pagemap(pid_t app_pid, char *out_name);
 
 #endif //__page_collect_h__
 

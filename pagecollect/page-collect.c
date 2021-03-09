@@ -36,10 +36,6 @@
 #include <ctype.h>
 
 #include <stdint.h>
-#include <map>
-#include <vector>
-#include <algorithm>
-#include <string>
 #include <math.h>
 
 #include "page-collect.h"
@@ -47,29 +43,8 @@
 // ERR() --
 #define ERR(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
 
-
-// Regular_TLB - fixed size entry 4K or 2M
-uint64_t Regular_TLB_4K = 0;
-uint64_t Regular_TLB_2M = 0;
-
-
-static struct option opts[] = {
-    { "pid"       , 1, NULL, 'p' },
-    { "out-file"  , 1, NULL, 'f' },
-    { "help"      , 0, NULL, 'h' },
-    { NULL        , 0, NULL, 0 }
-};
-
-// bool pairCompare(const std::pair<int64_t, uint64_t>& firstElem, const std::pair<int64_t, uint64_t>& secondElem) {
-//     return firstElem.second > secondElem.second;
-// }
-
-// bool pairCompareMin(const std::pair<int64_t, uint64_t>& firstElem, const std::pair<int64_t, uint64_t>& secondElem) {
-//     return firstElem.second < secondElem.second;
-// }
-
 // is_directory() --
-static bool is_directory(const char *dirname)
+static int is_directory(const char *dirname)
 {
     struct stat buf;
     int n;
@@ -82,7 +57,7 @@ static bool is_directory(const char *dirname)
 
 }
 
-void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, bool is_thp) {
+void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, int is_thp) {
     if (pfn == 0) // page not present
         fprintf(out,  "0x%-16lx :pfn -1 ,offset 0 not_present\n", vaddr);
     else {
@@ -107,8 +82,7 @@ static void usage(void)
 }
 
 
-// main() --
-int main(int argc, char *argv[])
+int collect_custom_pagemap(pid_t app_pid, char *out_name)
 {
     int n;
     FILE *m   = NULL;
@@ -117,31 +91,15 @@ int main(int argc, char *argv[])
     int kflags = -1;
     FILE *out = NULL;
     int retval = 0;
-    int c;
-    char *out_name = "./page-collect.dat";
-    pid_t opt_pid = 0;	/* process to walk */
-
     uint64_t total_present_pages = 0;
-    // std::map<uint64_t, uint64_t> Offsets;
-    // Process command-line arguments.
-    while ((c = getopt_long(argc, argv, "o:f:p:h", opts, NULL)) != -1) {
-        switch (c) {
-        case 'o':
-            out_name = optarg;
-            break;
-        case 'p':
-            opt_pid = strtoll(optarg, NULL, 0);
-            break;
-        case 'h':
-            usage();
-            exit(0);
-        default:
-            usage();
-            exit(1);
-        }
-    }
-
+    // Regular_TLB - fixed size entry 4K or 2M
+    uint64_t Regular_TLB_4K = 0;
+    uint64_t Regular_TLB_2M = 0;
     // Open output file for writing.
+    if (app_pid <= 0 || out_name == NULL) {
+        retval = -100;
+        goto done;
+    }
     out = fopen(out_name, "w");
     if (out == NULL) {
         ERR("Unable to open file \"%s\" for writing (errno=%d). (1)\n", out_name, errno);
@@ -150,8 +108,8 @@ int main(int argc, char *argv[])
     }
 
     char d_name[FILENAMELEN];
-    sprintf(d_name, "%s/%d", PROC_DIR_NAME, opt_pid);
-    printf("-----Checking %s/%d...-----\n", PROC_DIR_NAME, opt_pid);
+    sprintf(d_name, "%s/%d", PROC_DIR_NAME, app_pid);
+    printf("-----Checking %s/%d...-----\n", PROC_DIR_NAME, app_pid);
 
     // ...if the entry is a numerically-named directory...
     if (!is_directory(d_name)) {
@@ -221,13 +179,7 @@ int main(int argc, char *argv[])
 
         unsigned long vpn;      // current vpn that is inspected
         unsigned long long pfn; // and corresponding pfn
-        // long long current_offset;
 
-        unsigned long prev_vpn = 0;         // previous vpn
-        unsigned long long prev_pfn = 0;    // previous pfn
-        // long long prev_offset = 0;
-
-        // unsigned contiguity_length = 0;
         // get the range of the vma
         n = sscanf(line, "%lX-%lX", &vm_start, &vm_end);
         if (n != 2) {
@@ -308,23 +260,6 @@ int main(int argc, char *argv[])
                     // populate pagemap-like file
                     print_page_info(out, vpn << PAGE_SHIFT, pfn, (current_page_size==THP_SIZE ? 1 : 0));
 
-                    // Tracking
-                    // current_offset =  vpn - pfn;
-                    // if (current_offset == prev_offset) {
-                    //     contiguity_length += current_page_size;
-                    //
-                    // }
-                    // else {
-                    //     contiguity_length = current_page_size;
-                    // }
-
-                    // 6. track the number of mappings with same VA-to-PA (Offset)
-                    // Offsets[vpn-pfn]+=current_page_size;
-
-                    prev_vpn = vpn + current_page_size -1;
-                    prev_pfn = pfn + current_page_size -1;
-                    // prev_offset = current_offset;
-
                     total_present_pages+=current_page_size;
                 }
                 else {
@@ -353,8 +288,8 @@ int main(int argc, char *argv[])
         do_continue:
         ;
     }
-  // finalization phase..
-  done:
+    // finalization phase..
+done:
     fprintf(out, "\n----------\n");
     fprintf(out, "\n----------\n");
     fprintf(out, "working_set\n");
