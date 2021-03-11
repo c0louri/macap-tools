@@ -56,9 +56,8 @@ int mem_defrag = 0;
 int capaging = 0;
 // int vm_stats = 0;
 int defrag_online_stats = 0;
-unsigned int sleep_ms_defrag = 0;
+// unsigned int sleep_ms_defrag = 0;
 int defrag_freq_factor = 1;
-int child_proc_stat = 0;
 
 long scan_process_memory(pid_t pid, char *buf, int len, int action)
 {
@@ -155,21 +154,21 @@ void read_stats_periodically(pid_t app_pid) {
 					// get custom_pagemap from page-collect.cpp
 					sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
 					ret = collect_custom_pagemap(app_pid, out_name);
-					sleep_ms(sleep_ms_defrag);
+					// sleep_ms(sleep_ms_defrag);
 					if (defrag_online_stats) {
 						while ((read_ret = scan_process_memory(app_pid, stats_buf, buf_len, 3)) > 0) {
 							fputs(stats_buf, defrag_online_output);
 							memset(stats_buf, 0, buf_len);
-							sleep_ms(sleep_ms_defrag);
+							// sleep_ms(sleep_ms_defrag);
 						}
 						if (read_ret < 0)
 							break;
 						fputs("----\n", defrag_online_output);
 					} else {
 						while (scan_process_memory(app_pid, NULL, 0, 3) > 0)
-							sleep_ms(sleep_ms_defrag);
+							// sleep_ms(sleep_ms_defrag);
 					}
-					sleep_ms(sleep_ms_defrag);
+					// sleep_ms(sleep_ms_defrag);
 					sprintf(out_name, "pagemap_%d_%d_post.out", app_pid, file_index++);
 					ret = collect_custom_pagemap(app_pid, out_name);
 				}
@@ -274,16 +273,15 @@ int main(int argc, char** argv)
 		{"dumpstats", no_argument, &dumpstats, 1},
 		{"dumpstats_signal", no_argument, &use_dumpstats_signal, 1},
 		{"dumpstats_period", required_argument, 0, 'p'},
-		{"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
+		// {"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
 		{"nomigration", no_argument, &no_migration, 1},
 		{"mem_defrag", no_argument, &mem_defrag, 1},
 		{"capaging", no_argument, &mem_defrag, 1},
 		{"defrag_online_stats", no_argument, &defrag_online_stats, 1},
 		{"child_stdin", required_argument, 0, OPT_CHILD_STDIN},
 		{"child_stdout", required_argument, 0, OPT_CHILD_STDOUT},
-		{"sleep_ms_defrag", required_argument, 0, 'S'},
+		// {"sleep_ms_defrag", required_argument, 0, 'S'},
 		{"relocate_agent_mem", no_argument, &relocate_agent_mem, 1},
-		{"child_proc_stat", no_argument, &child_proc_stat, 1},
 		{0,0,0,0}
 	};
 	struct sigaction child_exit_act = {0}, dumpstats_act = {0};
@@ -369,8 +367,8 @@ int main(int argc, char** argv)
 					exit(-1);
 				}
 				break;
-			case 'S':
-				sleep_ms_defrag = atoi(optarg);
+			// case 'S':
+			// 	sleep_ms_defrag = atoi(optarg);
 				break;
 			case '?':
 				return 1;
