@@ -56,7 +56,7 @@ int mem_defrag = 0;
 int capaging = 0;
 // int vm_stats = 0;
 int defrag_online_stats = 0;
-// unsigned int sleep_ms_defrag = 0;
+unsigned int sleep_ms_defrag = 0;
 int defrag_freq_factor = 1;
 
 long scan_process_memory(pid_t pid, char *buf, int len, int action)
@@ -165,8 +165,8 @@ void read_stats_periodically(pid_t app_pid) {
 							break;
 						fputs("----\n", defrag_online_output);
 					} else {
-						while (scan_process_memory(app_pid, NULL, 0, 3) > 0)
-							// sleep_ms(sleep_ms_defrag);
+						while (scan_process_memory(app_pid, NULL, 0, 3) > 0);
+							sleep_ms(sleep_ms_defrag);
 					}
 					// sleep_ms(sleep_ms_defrag);
 					sprintf(out_name, "pagemap_%d_%d_post.out", app_pid, file_index++);
