@@ -19,16 +19,16 @@ int main(void) {
 	enable_capaging(current_pid);
 	//
 	//
-	unsigned long length = 32 * 1024 * 1024;
-	void *addr = allocate_big_anon(length, PROT_FLAGS, MAPPING_FLAGS, 1);
-	getchar();
-	//create_PFs_random(addr, length);
-	create_PFs(addr, length);
-    printf("Press Enter for defrag to start!\n");
-	getchar();
-	int res = scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
-	getchar();
+	unsigned long length = 4 * 1024 * 1024;
+	void *addr = allocate_big_anon(length, PROT_FLAGS, MAPPING_FLAGS, 0);
+	create_PFs_random(addr, length);
+	 printf("Press Enter after checking vmas!\n");
+	 getchar();
+	addr = allocate_big_anon(8 * length, PROT_FLAGS, MAPPING_FLAGS, 0);
+	create_PFs(addr, 8 * length);
+	 printf("Press Enter after checking vmas!\n");
+	 getchar();
+	// int res = scan_process_memory(current_pid, stats_buf, buf_len, MEM_DEFRAG_DEFRAG, out_file);
     fclose(out_file);
-	printf("Press Enter to exit...\n");
 	return 0;
 }
