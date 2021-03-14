@@ -148,13 +148,12 @@ void read_stats_periodically(pid_t app_pid) {
 	do {
 		if (dumpstats_signal) {
 			loop_count++;
+			// get custom_pagemap from page-collect.cpp
+			sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
+			ret = collect_custom_pagemap(app_pid, out_name);
 			if (loop_count % defrag_freq_factor == 0) {
 				/* defrag memory before scanning  */
 				if (mem_defrag) {
-					// get custom_pagemap from page-collect.cpp
-					sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
-					ret = collect_custom_pagemap(app_pid, out_name);
-					// sleep_ms(sleep_ms_defrag);
 					if (defrag_online_stats) {
 						while ((read_ret = scan_process_memory(app_pid, stats_buf, buf_len, 3)) > 0) {
 							fputs(stats_buf, defrag_online_output);
@@ -168,11 +167,10 @@ void read_stats_periodically(pid_t app_pid) {
 						while (scan_process_memory(app_pid, NULL, 0, 3) > 0);
 							sleep_ms(sleep_ms_defrag);
 					}
-					// sleep_ms(sleep_ms_defrag);
-					sprintf(out_name, "pagemap_%d_%d_post.out", app_pid, file_index++);
-					ret = collect_custom_pagemap(app_pid, out_name);
 				}
 			}
+			sprintf(out_name, "pagemap_%d_%d_post.out", app_pid, file_index++);
+			ret = collect_custom_pagemap(app_pid, out_name);
 		}
 		sleep(dumpstats_period);
 	} while (!child_quit);
@@ -273,7 +271,7 @@ int main(int argc, char** argv)
 		{"dumpstats", no_argument, &dumpstats, 1},
 		{"dumpstats_signal", no_argument, &use_dumpstats_signal, 1},
 		{"dumpstats_period", required_argument, 0, 'p'},
-		// {"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
+		{"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
 		{"nomigration", no_argument, &no_migration, 1},
 		{"mem_defrag", no_argument, &mem_defrag, 1},
 		{"capaging", no_argument, &mem_defrag, 1},
@@ -457,8 +455,13 @@ int main(int argc, char** argv)
 
 		if (mem_defrag)
 			scan_process_memory(0, NULL, 0, 1);
-		if (capaging)
-			syscall(syscall_enable_capaging, NULL, 0, 0);
+
+		if (capaging) {
+			char *child_names[1];
+			child_names[0] = basename(argv[0]);
+			puts(child_names[0]);
+			syscall(syscall_enable_capaging, child_names, 1, 1);
+		}
 
 		child_status = execvp(argv[0], argv);
 
