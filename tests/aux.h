@@ -53,7 +53,7 @@ void enable_capaging(pid_t pid) {
 	syscall(CAPAGING_SYSCALL, NULL, 0, 0);
 }
 
-void *allocate_big_anon(long int length, int prot_flags, int map_flags, int use_huge) {
+void *allocate_big_anon(unsigned long length, int prot_flags, int map_flags, int use_huge) {
 	void *addr = mmap(NULL, length, prot_flags, map_flags, -1, 0);
 	if (use_huge) {
 		madvise(addr, length, MADV_HUGEPAGE);

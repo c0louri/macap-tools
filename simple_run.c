@@ -274,7 +274,7 @@ int main(int argc, char** argv)
 		{"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
 		{"nomigration", no_argument, &no_migration, 1},
 		{"mem_defrag", no_argument, &mem_defrag, 1},
-		{"capaging", no_argument, &mem_defrag, 1},
+		{"capaging", no_argument, &capaging, 1},
 		{"defrag_online_stats", no_argument, &defrag_online_stats, 1},
 		{"child_stdin", required_argument, 0, OPT_CHILD_STDIN},
 		{"child_stdout", required_argument, 0, OPT_CHILD_STDOUT},
