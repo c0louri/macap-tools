@@ -106,3 +106,7 @@ void create_PFs_random(void *addr, unsigned long length) {
 		*(array[i]) = rand();
     free(array);
 }
+
+// functions for handling SIGUSR1/SIGUSR2 arriving in benchmark
+void sigusr1_handler() { ; }
+void sigusr2_handler() { ; }
