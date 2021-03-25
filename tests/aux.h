@@ -19,34 +19,40 @@
 #define MAPPING_FLAGS 	MAP_ANONYMOUS|MAP_PRIVATE
 
 int scan_process_memory(pid_t pid, char *buf, int buf_len, int action, FILE *out) {
-	int res = 0;
-	if (buf) {
+	int read_ret = 0;
+	if (buf)
 		memset(buf, 0, buf_len);
-	}
+
 	switch (action) {
 		case MEM_DEFRAG_MARK_SCAN_ALL:
 			printf("Marking process for defrag!\n");
-			res = syscall(DEFRAG_SYSCALL, 0, NULL, 0, MEM_DEFRAG_MARK_SCAN_ALL);
+			read_ret = syscall(DEFRAG_SYSCALL, pid, NULL, 0, MEM_DEFRAG_MARK_SCAN_ALL);
 			break;
 		case MEM_DEFRAG_SCAN:
 			break;
 		case MEM_DEFRAG_DEFRAG:
-			printf("Defrag started...");
-			res = syscall(DEFRAG_SYSCALL, 0, buf, buf_len, MEM_DEFRAG_DEFRAG);
-			printf("Defragging done!");
+			printf("Defrag started...\n");
+            if (buf && out) {
+				while ((read_ret = syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG)) > 0) {
+					fputs(buf, out);
+					memset(buf, 0, buf_len);
+				}
+				if (read_ret < 0)
+					break;
+				fputs("----\n", out);
+			} else {
+				while (syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG) > 0);
+			}
+			printf("Defrag is done!\n");
 			break;
 		case MEM_DEFRAG_CLEAR_SCAN_ALL:
-			res = syscall(DEFRAG_SYSCALL, pid, NULL, 0, MEM_DEFRAG_CLEAR_SCAN_ALL);
+			read_ret = syscall(DEFRAG_SYSCALL, pid, NULL, 0, MEM_DEFRAG_CLEAR_SCAN_ALL);
 			break;
 		case MEM_DEFRAG_CONTIG_SCAN:
 		default:
 			break;
 	}
-	if (out && buf) {
-		fputs("~~~~~Defrag log!!!!\n", out);
-		fputs(buf, out);
-	}
-	return res;
+	return read_ret;
 }
 
 void enable_capaging(pid_t pid) {
@@ -68,10 +74,6 @@ void create_PFs(void *addr, unsigned long length) {
 	time_t t;
 	srand((unsigned) time(&t));
 	char *i = (char *)addr;
-	//for(; i < (char *)addr + length - 8; i += 512*4096 + 4096)
-	//	*((unsigned long *)i) = rand();
-	//for(; i < (char *)addr + length - 8; i += 8*4096)
-	//	*((unsigned long *)i) = rand();
 	for(; i < (char *)addr + length; i += 2048)
 		*i = rand() % 256;
 }
@@ -108,5 +110,5 @@ void create_PFs_random(void *addr, unsigned long length) {
 }
 
 // functions for handling SIGUSR1/SIGUSR2 arriving in benchmark
-void sigusr1_handler() { ; }
-void sigusr2_handler() { ; }
+void sigusr1_handler(int signum) { return;}
+void sigusr2_handler(int signum) { return;}

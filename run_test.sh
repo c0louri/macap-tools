@@ -1,49 +1,75 @@
 #!/usr/bin/bash
-set -e
+
+#global
+SIZE=8 #8 is multiplier of 128mb
 
 # signal handlers
 function pre_handler()
-{
-	echo "Collecting predefrag stats for $CHILD"
-	../stats.sh $CHILD
-	kill -SIGUSR1 $CHILD
-}
+(
+	echo "Collecting predefrag stats for $!"
+	./stats.sh $! pre 0 >res_$CASE.out
+	kill -SIGUSR1 $!
+)
 
 function post_handler()
 {
-	echo "Collecting predefrag stats for $CHILD"
-	../stats.sh $CHILD
-	kill -SIGUSR2 $CHILD
+	echo "Collecting postdefrag stats for $!"
+	./stats.sh $! post 0 >>res_$CASE.out
+	kill -SIGUSR1 $!
 }
-
 trap pre_handler SIGUSR1
 trap post_handler SIGUSR2
 
+# disable defrag for every test
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 
 
 ## with THP enabled
 echo always >/sys/kernel/mm/transparent_hugepage/enabled
-./tests/test -l 1 --mem_defrag --capaging --with_signals &
-CHILD=$!
-wait $CHILD
-# ./tests/test -l 8 --mem_defrag --capaging --random_alloc --with_signals &
-# CHILD=$!
 
-# ## without THP enabled
-# echo never >/sys/kernel/mm/transparent_hugepage/enabled
-# ./tests/test -l 8 --mem_defrag --capaging --with_signals &
-# CHILD=$!
-# ./tests/test -l 8 --mem_defrag --capaging --random_alloc --with_signals &
-# CHILD=$!
+CASE=always_lin
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --with_signals > run.out &
+wait $!; wait $!
+sleep 1
 
-# echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
-# ./tests/test -l 8 --mem_defrag --capaging --madv_hp --with_signals &
-# CHILD=$!
-# ./test -l 8 --mem_defrag --capaging --random_alloc --madv_hp --with_signals &
-# CHILD=$!
+CASE=always_random
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --random_alloc --with_signals >> run.out &
+wait $!; wait $!
+sleep 1
 
+## without THP enabled
+echo never >/sys/kernel/mm/transparent_hugepage/enabled
+CASE=never_lin
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --with_signals >>run.out  &
+wait $!; wait $!
+sleep 1
+
+CASE=never_random
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --random_alloc --with_signals >>run.out &
+wait $!; wait $!
+sleep 1
+
+#madvise case
+echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+CASE=madv_lin
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --madv_hp --with_signals >>run.out &
+wait $!; wait $!
+sleep 1
+CASE=madv_random
+echo $CASE  
+./test -l $SIZE --mem_defrag --capaging --random_alloc --madv_hp --with_signals >>run.out &
+wait $!; wait $!
+sleep 1
 trap - USR1
 trap - USR2
-exit
+
+mkdir results
+mv res_* results/
+#rm pagecollect_*
+#rm vmas_pagemap_*

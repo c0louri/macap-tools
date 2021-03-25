@@ -248,7 +248,10 @@ int collect_custom_pagemap(pid_t app_pid, char *out_name)
                             current_page_size=512;
                         }
                         else {
-                            printf("What is going on %lu %lu\n", vpn, pfn);
+                            // this case happend also when part of huge page has bee freed
+                            fprintf(stderr, "What is going on %lx %lx\n", vpn, pfn);
+                            Regular_TLB_4K++;
+                            current_page_size=1;
                         //	assert(0);
                         }
                     }
