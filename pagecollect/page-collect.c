@@ -59,13 +59,13 @@ static int is_directory(const char *dirname)
 
 void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, int is_thp) {
     if (pfn == 0) // page not present
-        fprintf(out,  "0x%-16lx :pfn -1 ,offset 0 not_present\n", vaddr);
+        fprintf(out,  "%-16lx p: -1 o: 0 np\n", vaddr);
     else {
         long long offset = (vaddr>>PAGE_SHIFT) - pfn;
         if (is_thp)
-            fprintf(out, "0x%-16lx :pfn %-16lx ,offset %lld thp\n", vaddr, pfn, offset);
+            fprintf(out, "%-16lx p: %-16lx o: %lld thp\n", vaddr, pfn, offset);
         else
-            fprintf(out, "0x%-16lx :pfn %-16lx ,offset %lld  no_thp\n", vaddr, pfn, offset);
+            fprintf(out, "%-16lx p: %-16lx o: %lld  no_thp\n", vaddr, pfn, offset);
     }
 }
 

@@ -205,7 +205,7 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 			pfn = int(parts[2], 16)
 			offset = int(parts[4])
 			page_type = parts[5]
-			if page_type == 'not_present':
+			if page_type == 'np':
 				total_not_present_pages += 1
 				pages.append((vaddr, None, None, 0, None))
 			elif 'thp' in page_type:
@@ -316,42 +316,6 @@ def print_pagemap_list(pagemap):
 		print("0x{:x} pfn: {:x} offset: {}  {}  {}".format(vaddr, pfn, offset, num_pages, is_right_placed))
 
 
-
-# def main():
-# 	args_number = len(sys.argv)
-# 	args = sys.argv
-# 	anchors = False
-# 	pagemap_file_from_cpp = ""
-# 	if args_number == 2:
-#         	pid = int(args[1])
-# 	elif args_number == 3:
-# 		pid, anchors = int(args[1]), bool(int(args[2]))
-# 	elif args_number == 4:
-# 		pid = int(args[1])
-# 		anchors = bool(int(args[2]))
-# 		pagemap_file_from_cpp = args[3]
-# 	else:
-# 		print('#args = 2 : needs as argument PID, then only prints VMA')
-# 		print('#args = 3 : arguments= PID, 1 (if anchors enabled)')
-# 		print('#args = 4 : PID 1 <pagemap_file_name>')
-# 		exit()
-# 	VMAs = read_vmas(pid, anchors)
-# 	if anchors and (pagemap_file_from_cpp != ""):
-# 		custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_file_from_cpp, VMAs)
-# 		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
-# 		print('Pagemap statistics:')
-# 		print('Present pages: ', cnt_pres)
-# 		print('Not present pages: ',cnt_not_pres)
-# 		print("~~~~~")
-# 		print('Total present pages in subVMAs: ', total_pres_svma)
-# 		print('Good-offset pages: ', good_p[0])
-# 		print('Bad-offset pages: ', bad_p[0])
-# 	else:
-# 		# print info for VMA
-# 		for vma in VMAs.values():
-# 			vma.print_info()
-
-
 # main for compined vma and pagemap lines
 def main():
 	args_number = len(sys.argv)
@@ -368,7 +332,6 @@ def main():
 	print('Pagemap statistics:')
 	print('Present pages: ', cnt_pres)
 	print('Not present pages: ',cnt_not_pres)
-	print("~~~~~")
 	print('Total present pages in subVMAs: ', total_pres_svma)
 	print('Good-offset pages: ', good_p[0])
 	print('Bad-offset pages: ', bad_p[0])

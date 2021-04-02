@@ -34,6 +34,7 @@ int scan_process_memory(pid_t pid, char *buf, int buf_len, int action, FILE *out
 			printf("Defrag started...\n");
             if (buf && out) {
 				while ((read_ret = syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG)) > 0) {
+					printf("~");
 					fputs(buf, out);
 					memset(buf, 0, buf_len);
 				}
@@ -41,9 +42,10 @@ int scan_process_memory(pid_t pid, char *buf, int buf_len, int action, FILE *out
 					break;
 				fputs("----\n", out);
 			} else {
-				while (syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG) > 0);
+				while (syscall(DEFRAG_SYSCALL, pid, buf, buf_len, MEM_DEFRAG_DEFRAG) > 0)
+					printf("~");
 			}
-			printf("Defrag is done!\n");
+			printf("\nDefrag is done!\n");
 			break;
 		case MEM_DEFRAG_CLEAR_SCAN_ALL:
 			read_ret = syscall(DEFRAG_SYSCALL, pid, NULL, 0, MEM_DEFRAG_CLEAR_SCAN_ALL);

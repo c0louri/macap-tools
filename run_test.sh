@@ -2,7 +2,7 @@
 
 #global
 SIZE=8 #8 is multiplier of 128mb
-
+sysctl vm.num_breakout_chunks=50
 # signal handlers
 function pre_handler()
 (
@@ -29,13 +29,13 @@ echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 echo always >/sys/kernel/mm/transparent_hugepage/enabled
 
 CASE=always_lin
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --with_signals > run.out &
 wait $!; wait $!
 sleep 1
 
 CASE=always_random
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --random_alloc --with_signals >> run.out &
 wait $!; wait $!
 sleep 1
@@ -43,13 +43,13 @@ sleep 1
 ## without THP enabled
 echo never >/sys/kernel/mm/transparent_hugepage/enabled
 CASE=never_lin
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --with_signals >>run.out  &
 wait $!; wait $!
 sleep 1
 
 CASE=never_random
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --random_alloc --with_signals >>run.out &
 wait $!; wait $!
 sleep 1
@@ -57,12 +57,12 @@ sleep 1
 #madvise case
 echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
 CASE=madv_lin
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --madv_hp --with_signals >>run.out &
 wait $!; wait $!
 sleep 1
 CASE=madv_random
-echo $CASE  
+echo $CASE
 ./test -l $SIZE --mem_defrag --capaging --random_alloc --madv_hp --with_signals >>run.out &
 wait $!; wait $!
 sleep 1
