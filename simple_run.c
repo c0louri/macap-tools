@@ -124,6 +124,7 @@ void read_stats_periodically(pid_t app_pid) {
 	int loop_count = 0;
 	int file_index = 0;
 	char out_name[100];
+    char iter_index[10];
 	int ret = 0;
 
 	stats_buf = malloc(buf_len);
@@ -150,11 +151,15 @@ void read_stats_periodically(pid_t app_pid) {
 			loop_count++;
 			// get custom_pagemap from page-collect.cpp
 			sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
+            if (loop_count %defrag_freq_factor == 0)
+                printf("Pre");
 			ret = collect_custom_pagemap(app_pid, out_name);
 			if (loop_count % defrag_freq_factor == 0) {
 				/* defrag memory before scanning  */
 				if (mem_defrag) {
 					if (defrag_online_stats) {
+                        sprintf(iter_index, "%d:\n", file_index);
+                        fputs(iter_index,defrag_online_output);
 						while ((read_ret = scan_process_memory(app_pid, stats_buf, buf_len, 3)) > 0) {
 							fputs(stats_buf, defrag_online_output);
 							memset(stats_buf, 0, buf_len);
@@ -167,10 +172,12 @@ void read_stats_periodically(pid_t app_pid) {
 						while (scan_process_memory(app_pid, NULL, 0, 3) > 0);
 							sleep_ms(sleep_ms_defrag);
 					}
+			        sprintf(out_name,"pagemap_%d_%d_post.out",app_pid, file_index);
+                    printf("Post");
+			        ret = collect_custom_pagemap(app_pid, out_name);
 				}
 			}
-			sprintf(out_name, "pagemap_%d_%d_post.out", app_pid, file_index++);
-			ret = collect_custom_pagemap(app_pid, out_name);
+            file_index++;
 		}
 		sleep(dumpstats_period);
 	} while (!child_quit);

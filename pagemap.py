@@ -324,18 +324,14 @@ def main():
 		file_from_cpp = args[1]
 	else:
 		print('It needs a single parameter: the name of te file created by page-collect.run')
+		print('Output is:')
+		print('Present, Not present , Present in subVMAs, Good-offset, Bad-offset (all in #4K pages)')
 		exit()
 	vma_lines, pagemap_lines = read_vma_pagemap_file(file_from_cpp)
 	VMAs = create_all_vma(vma_lines, True)
 	custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
 	offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
-	print('Pagemap statistics:')
-	print('Present pages: ', cnt_pres)
-	print('Not present pages: ',cnt_not_pres)
-	print('Total present pages in subVMAs: ', total_pres_svma)
-	print('Good-offset pages: ', good_p[0])
-	print('Bad-offset pages: ', bad_p[0])
-
+	print('{}, {}, {}, {}, {}'.format(cnt_pres, cnt_not_pres, total_pres_svma, good_p[0], bad_p[0]))
 
 if __name__ == "__main__":
     main()
