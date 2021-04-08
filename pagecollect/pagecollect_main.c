@@ -93,4 +93,5 @@ int main(int argc, char *argv[])
         }
     }
     return collect_custom_pagemap(opt_pid, out_name);
+    // return collect_pagemap_hist(opt_pid, out_name, 0, 0);
 }

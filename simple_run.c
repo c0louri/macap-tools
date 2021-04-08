@@ -54,6 +54,8 @@ int dumpstats_signal = 1;
 int dumpstats_period = 1;
 int mem_defrag = 0;
 int capaging = 0;
+int print_raw_pagemap = 0;
+int print_raw_hist_data = 0;
 // int vm_stats = 0;
 int defrag_online_stats = 0;
 unsigned int sleep_ms_defrag = 0;
@@ -124,6 +126,7 @@ void read_stats_periodically(pid_t app_pid) {
 	int loop_count = 0;
 	int file_index = 0;
 	char out_name[100];
+	char command[200];
     char iter_index[10];
 	int ret = 0;
 
@@ -146,14 +149,23 @@ void read_stats_periodically(pid_t app_pid) {
 	}
 
 	sleep(1);
+	sprintf(command, "./pagecollect/cap_pagecollect -p %d -o %s -r -m", app_pid, out_name);
 	do {
 		if (dumpstats_signal) {
 			loop_count++;
 			// get custom_pagemap from page-collect.cpp
-			sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
+			// sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
             if (loop_count %defrag_freq_factor == 0)
-                printf("Pre");
-			ret = collect_custom_pagemap(app_pid, out_name);
+                printf("Pre collecting...\n");
+			//ret = collect_custom_pagemap(app_pid, out_name);
+			/**/
+			sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_pre.out -o -r -m", app_pid, app_pid, file_index);
+			// measure time spot (pre-precollect pre-defrag)
+
+			system(command);
+			// measure time spot (post-precollect pre-defrag)
+
+			/**/
 			if (loop_count % defrag_freq_factor == 0) {
 				/* defrag memory before scanning  */
 				if (mem_defrag) {
@@ -172,9 +184,15 @@ void read_stats_periodically(pid_t app_pid) {
 						while (scan_process_memory(app_pid, NULL, 0, 3) > 0);
 							sleep_ms(sleep_ms_defrag);
 					}
-			        sprintf(out_name,"pagemap_%d_%d_post.out",app_pid, file_index);
-                    printf("Post");
-			        ret = collect_custom_pagemap(app_pid, out_name);
+			        // sprintf(out_name,"pagemap_%d_%d_post.out",app_pid, file_index);
+                    printf("Post collecting...\n");
+			        // ret = collect_custom_pagemap(app_pid, out_name);
+					sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_post.out -r -m", app_pid, app_pid, file_index);
+					// measure time spot (pre-postcollect post-defrag)
+
+					system(command);
+					// measure time spot (post-postcollect post-defrag)
+
 				}
 			}
             file_index++;
@@ -282,6 +300,8 @@ int main(int argc, char** argv)
 		{"nomigration", no_argument, &no_migration, 1},
 		{"mem_defrag", no_argument, &mem_defrag, 1},
 		{"capaging", no_argument, &capaging, 1},
+		{"pr_pagemap", no_argument, &print_raw_pagemap, 1},
+		{"pr_hist_data", no_argument, &print_raw_hist_data, 1},
 		{"defrag_online_stats", no_argument, &defrag_online_stats, 1},
 		{"child_stdin", required_argument, 0, OPT_CHILD_STDIN},
 		{"child_stdout", required_argument, 0, OPT_CHILD_STDOUT},

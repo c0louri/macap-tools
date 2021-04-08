@@ -99,5 +99,9 @@
 
 int collect_custom_pagemap(pid_t app_pid, char *out_name);
 
-#endif //__page_collect_h__
+#ifdef __cplusplus
+extern "C"
+#endif
+int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw_data, int print_pagemap);
 
+#endif //__page_collect_h__

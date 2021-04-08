@@ -196,7 +196,6 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 			exit()
 		lines = pagemap_file_or_lines
 	total_present_pages = 0
-	total_not_present_pages = 0
 	pages = []
 	for line in lines:
 		if line.startswith('0x'):
@@ -206,8 +205,8 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 			offset = int(parts[4])
 			page_type = parts[5]
 			if page_type == 'np':
-				total_not_present_pages += 1
-				pages.append((vaddr, None, None, 0, None))
+				# total_not_present_pages += 1
+				# pages.append((vaddr, None, None, 0, None))
 			elif 'thp' in page_type:
 				# check if it is in subVMA and has the offset of the vma
 				vma = find_vma(VMAs, vaddr)
@@ -227,8 +226,10 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 			else:
 				print("This shouldn\'t happen2!! ", line)
 				exit()
+		elif line.startswith('~!!!~'):
+			break
 	pages = sorted(pages, key=lambda x: x[0])
-	return pages, total_present_pages, total_not_present_pages
+	return pages, total_present_pages
 
 """
 pagemap : it should be the return list of read_custom_pagemap()
@@ -287,28 +288,13 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 			pages_bad_offset[1].append(vaddr)
 			if num_pages == 512:
 				total_bad_thp += 1
-
 	return offsets, pages_good_offset, pages_bad_offset, total_pres_p_in_subvmas
 
-
-def compare_pagemap(old_pagemap_file, new_pagemap_file, VMAs):
-	pagemap_1, cnt_pres_1, cnt_not_pres_1 = read_custom_pagemap(old_pagemap_file)
-	offsets_1, good_p_1, bad_p_1 = create_offset_map(pagemap_1, VMAs, True)
-	pagemap_2, cnt_pres_2, cnt_not_pres_2 = read_custom_pagemap(new_pagemap_file)
-	offsets_2, good_p_2, bad_p_2 = create_offset_map(pagemap_2, VMAs, True)
-	#print(offsets_1)
-	#print(offsets_2)
-	print('1st pagemap statistics:')
-	print('Present pages: ', cnt_pres_1)
-	print('Not present pages: ',cnt_not_pres_1)
-	print('Good-offset pages: ', good_p_1[0])
-	print('Bad-offset pages: ', bad_p_1[0])
-	# 2nd pagemap
-	print('2nd pagemap statistics:')
-	print('Present pages: ', cnt_pres_1)
-	print('Not present pages: ',cnt_not_pres_1)
-	print('Good-offset pages: ', good_p_1[0])
-	print('Bad-offset pages: ', bad_p_1[0])
+def get_total_pages(vmas):
+	total_pages = 0 # present and not present pages
+	for vma in VMAs.values():
+		total_pages += vma.size
+	return total_pages
 
 def print_pagemap_list(pagemap):
 	for entry in pagemap:
@@ -329,7 +315,9 @@ def main():
 		exit()
 	vma_lines, pagemap_lines = read_vma_pagemap_file(file_from_cpp)
 	VMAs = create_all_vma(vma_lines, True)
-	custom_pagemap, cnt_pres, cnt_not_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
+	total_pages = get_total_pages(VMAs)
+	custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
+	cnt_not_pres = total_pages - cnt_pres
 	offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
 	print('{}, {}, {}, {}, {}'.format(cnt_pres, cnt_not_pres, total_pres_svma, good_p[0], bad_p[0]))
 
