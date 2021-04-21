@@ -206,7 +206,7 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 			page_type = parts[5]
 			if page_type == 'np':
 				# total_not_present_pages += 1
-				# pages.append((vaddr, None, None, 0, None))
+				pages.append((vaddr, None, None, 0, None))
 			elif 'thp' in page_type:
 				# check if it is in subVMA and has the offset of the vma
 				vma = find_vma(VMAs, vaddr)
@@ -292,9 +292,23 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 
 def get_total_pages(vmas):
 	total_pages = 0 # present and not present pages
-	for vma in VMAs.values():
+	for vma in vmas.values():
 		total_pages += vma.size
 	return total_pages
+
+def get_coverage(lines):
+	i = 0
+	st = -1
+	end = 0
+	while i < len(lines):
+		line = lines[i]
+		if line.startswith('----------') and st == -1:
+			st = i
+		elif line.startswith('total_present_working_set'):
+			end = i
+		i += 1
+	cov_text='\n'.join(lines[st: (end+1)])
+	return cov_text
 
 def print_pagemap_list(pagemap):
 	for entry in pagemap:
@@ -306,20 +320,31 @@ def print_pagemap_list(pagemap):
 def main():
 	args_number = len(sys.argv)
 	args = sys.argv
+	only_coverage = False
+	only_vma = False
 	if args_number == 2:
 		file_from_cpp = args[1]
+	elif args_number == 3 and args[2]=='only_cov':
+		file_from_cpp = args[1]
+		only_coverage = True
+	elif args_number == 3 and args[2]=='only_vma':
+		file_from_cpp = args[1]
+		only_vma = True
 	else:
 		print('It needs a single parameter: the name of te file created by page-collect.run')
 		print('Output is:')
-		print('Present, Not present , Present in subVMAs, Good-offset, Bad-offset (all in #4K pages)')
+		print('Present in subVMAs, Good-offset, Bad-offset (all in #4K pages)')
 		exit()
 	vma_lines, pagemap_lines = read_vma_pagemap_file(file_from_cpp)
-	VMAs = create_all_vma(vma_lines, True)
-	total_pages = get_total_pages(VMAs)
-	custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
-	cnt_not_pres = total_pages - cnt_pres
-	offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
-	print('{}, {}, {}, {}, {}'.format(cnt_pres, cnt_not_pres, total_pres_svma, good_p[0], bad_p[0]))
+	if only_coverage:
+		print(get_coverage(pagemap_lines))
+	elif only_vma:
+		print('\n'.join(vma_lines))
+	else:
+		VMAs = create_all_vma(vma_lines, True)
+		custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
+		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+		print('{}, {}, {}'.format(total_pres_svma, good_p[0], bad_p[0]))
 
 if __name__ == "__main__":
     main()

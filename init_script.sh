@@ -12,4 +12,8 @@ echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 # sysctl vm.vma_scan_percentile=100
 # echo -n 'file mm/mem_defrag.c -p' > /sys/kernel/debug/dynamic_debug/control
 # echo -n 'file mem_defrag.c -p' > /sys/kernel/debug/dynamic_debug/control
-
+# echo function > /sys/kernel/debug/tracing/current_tracer
+# echo free_pcppages_bulk > /sys/kernel/debug/tracing/set_ftrace_filter
+# echo drain_all_pages>> /sys/kernel/debug/tracing/set_ftrace_filter
+sysctl vm.defrag_ignore_drain=0
+sysctl vm/defrag_split_thp=1

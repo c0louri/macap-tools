@@ -48,6 +48,11 @@ unsigned cycles_high, cycles_low;
 unsigned cycles_high1, cycles_low1;
 RESUSE time_stats;
 pid_t child;
+// for measuring exec time of defrag and pagecollect
+volatile unsigned long total_defrag_us = 0;
+volatile unsigned long total_collect_us = 0;
+
+
 volatile int child_quit = 0;
 volatile int info_done = 0;
 int dumpstats_signal = 1;
@@ -129,6 +134,7 @@ void read_stats_periodically(pid_t app_pid) {
 	char command[200];
     char iter_index[10];
 	int ret = 0;
+    struct timeval pre_col, post_col, pre_def, post_def;
 
 	stats_buf = malloc(buf_len);
 	if (!stats_buf)
@@ -138,7 +144,6 @@ void read_stats_periodically(pid_t app_pid) {
 	if (defrag_online_stats) {
 		if (get_new_filename("./defrag_online_stats", &stats_filename))
 			goto cleanup;
-
 		defrag_online_output = fopen(stats_filename, "w");
 		if (!defrag_online_output) {
 			perror("cannot write stats file");
@@ -149,26 +154,29 @@ void read_stats_periodically(pid_t app_pid) {
 	}
 
 	sleep(1);
-	sprintf(command, "./pagecollect/cap_pagecollect -p %d -o %s -r -m", app_pid, out_name);
 	do {
 		if (dumpstats_signal) {
 			loop_count++;
 			// get custom_pagemap from page-collect.cpp
-			// sprintf(out_name, "pagemap_%d_%d_pre.out", app_pid, file_index);
             if (loop_count %defrag_freq_factor == 0)
-                printf("Pre collecting...\n");
+                printf("%d)Pre collecting...", file_index);
 			//ret = collect_custom_pagemap(app_pid, out_name);
-			/**/
-			sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_pre.out -o -r -m", app_pid, app_pid, file_index);
+			sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_pre.out -r -m\n", app_pid, app_pid, file_index);
 			// measure time spot (pre-precollect pre-defrag)
-
-			system(command);
+		    gettimeofday(&pre_col, NULL);
+            ret = system(command); printf("Done\n");
+            if (ret != 0) {
+                printf("error: %d in system(precollect)\n", ret);
+            }
 			// measure time spot (post-precollect pre-defrag)
-
-			/**/
+		    gettimeofday(&post_col, NULL);
+            // save collect time
+            total_collect_us += (post_col.tv_sec - pre_col.tv_sec) * 1000000;
+            total_collect_us += (post_col.tv_usec - pre_col.tv_usec);	
 			if (loop_count % defrag_freq_factor == 0) {
 				/* defrag memory before scanning  */
 				if (mem_defrag) {
+                    gettimeofday(&pre_def, NULL);
 					if (defrag_online_stats) {
                         sprintf(iter_index, "%d:\n", file_index);
                         fputs(iter_index,defrag_online_output);
@@ -182,17 +190,27 @@ void read_stats_periodically(pid_t app_pid) {
 						fputs("----\n", defrag_online_output);
 					} else {
 						while (scan_process_memory(app_pid, NULL, 0, 3) > 0);
-							sleep_ms(sleep_ms_defrag);
+							//sleep_ms(sleep_ms_defrag);
 					}
-			        // sprintf(out_name,"pagemap_%d_%d_post.out",app_pid, file_index);
-                    printf("Post collecting...\n");
+                    gettimeofday(&post_def, NULL);
+                    // save defrag time
+                    total_defrag_us += (post_def.tv_sec - pre_def.tv_sec) * 1000000;
+                    total_defrag_us += (post_def.tv_usec - pre_def.tv_usec);	
+                    printf("Post collecting...");
 			        // ret = collect_custom_pagemap(app_pid, out_name);
-					sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_post.out -r -m", app_pid, app_pid, file_index);
+					sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_post.out -r -m\n", app_pid, app_pid, file_index);
 					// measure time spot (pre-postcollect post-defrag)
-
-					system(command);
+                    gettimeofday(&pre_col, NULL);
+					system(command); printf("Done\n");
+                    if (ret != 0) {
+                        printf("error: %d in system(postcollect)\n", ret); 
+                    }
 					// measure time spot (post-postcollect post-defrag)
-
+                    gettimeofday(&post_col, NULL);
+                    // save collect time
+                    total_collect_us += (post_col.tv_sec - pre_col.tv_sec) * 1000000;
+                    total_collect_us += (post_col.tv_usec - pre_col.tv_usec);	
+                
 				}
 			}
             file_index++;
@@ -270,9 +288,10 @@ void child_exit(int sig, siginfo_t *siginfo, void *context)
 
 
 	fprintf(stderr, "cycles: %lu\n", end - start);
-
 	fprintf(stderr, "real time(ms): %lu, user time(ms): %lu, system time(ms): %lu, virtual cpu time(ms): %lu\n",
 			r, user_time, system_time, user_time+system_time);
+    fprintf(stderr, "defrag time(ms): %lu, collect_stats time(ms): %lu\n",
+                     total_defrag_us/1000, total_collect_us/1000);
 	fprintf(stderr, "min_flt: %lu, maj_flt: %lu, maxrss: %lu KB\n",
 			time_stats.ru.ru_minflt, time_stats.ru.ru_majflt,
 			time_stats.ru.ru_maxrss);

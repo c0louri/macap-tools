@@ -11,7 +11,6 @@ else
 fi
 
 #echo "PID:$PID"
-echo "Present pages in subVMAs, Good-offset pages, Bad-offset pages"
 ITER=-1
 while true
 do
@@ -19,18 +18,22 @@ do
     PRE_FILE=pagemap_${PID}_${ITER}_pre.out
     if [[ -e $PRE_FILE ]]; then
         #echo $PRE_FILE
-        CMD="python3 pagemap.py ${PRE_FILE}"
-        echo "${ITER}_PRE_DEFRAG: $(eval $CMD)"
+        CMD="python3 pagemap.py ${PRE_FILE} only_cov"
+        echo "${ITER}_PRE_DEFRAG:"
+        eval $CMD
     else
         break 
     fi        
 
     POST_FILE=pagemap_${PID}_${ITER}_post.out
     if [[ -e $POST_FILE ]]; then
+        echo ""
         #echo $POST_FILE
-        CMD="python3 pagemap.py ${POST_FILE}"
-        echo "${ITER}_POST_DEFRAG: $(eval $CMD)"
+        CMD="python3 pagemap.py ${POST_FILE} only_cov"
+        echo "${ITER}_POST_DEFRAG:"
+        eval $CMD
     else
         continue 
     fi
+    echo ""
 done

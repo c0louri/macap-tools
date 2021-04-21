@@ -323,7 +323,7 @@ extern "C" int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw
 
     char d_name[FILENAMELEN];
     sprintf(d_name, "%s/%d", PROC_DIR_NAME, app_pid);
-    printf("-----Checking %s/%d...-----\n", PROC_DIR_NAME, app_pid);
+    // printf("-----Checking %s/%d...-----\n", PROC_DIR_NAME, app_pid);
     // ...if the entry is a numerically-named directory...
     if (!is_directory(d_name)) {
         printf("Something wrong with proc path!\n");
@@ -365,7 +365,7 @@ extern "C" int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw
         goto done;
     }
 
-    if (print_pagemap) {
+    //if (print_pagemap) {
         //Open pid/anchormaps for reading
         sprintf(am_name, "%s/%s", d_name, ANCHOR_MAPS_NAME);
         am = fopen(am_name, "r");
@@ -381,7 +381,7 @@ extern "C" int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw
         if (am != NULL) {
             fclose(am);
         }
-    }
+    //}
 
     fprintf(out, "~!~\n");
 
@@ -626,6 +626,7 @@ int main(int argc, char *argv[])
             break;
         case 'm': // print pagemap into file
             print_pagemap = 1;
+            break;
         case 'h':
             usage();
             exit(0);
