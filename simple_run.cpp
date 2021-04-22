@@ -85,7 +85,7 @@ static void sleep_ms(unsigned int milliseconds)
 
 static int get_new_filename(const char *filename, char **final_name)
 {
-	const char *template = "%s_%d";
+	const char *file_template = "%s_%d";
 	int len = strlen(filename) + 5; /* 1: _, 3: 0-999, 1: \n  */
 	int index = 0;
 	struct stat st;
@@ -94,17 +94,17 @@ static int get_new_filename(const char *filename, char **final_name)
 	if (!final_name)
 		return -EINVAL;
 
-	*final_name = malloc(len);
+	*final_name = (char *)malloc(len);
 	if (!*final_name)
 		return -ENOMEM;
 	memset(*final_name, 0, len);
 
-	sprintf(*final_name, template,filename, index);
+	sprintf(*final_name, file_template,filename, index);
 
 	while ((file_not_exist = stat(*final_name, &st)) == 0)
 	{
 		index++;
-		sprintf(*final_name, template, filename, index);
+		sprintf(*final_name, file_template, filename, index);
 
 		if (index >= 1000)
 			break;
@@ -136,7 +136,7 @@ void read_stats_periodically(pid_t app_pid) {
 	int ret = 0;
     struct timeval pre_col, post_col, pre_def, post_def;
 
-	stats_buf = malloc(buf_len);
+	stats_buf = (char *)malloc(buf_len);
 	if (!stats_buf)
 		return;
 	memset(stats_buf, 0, buf_len);
@@ -229,7 +229,7 @@ cleanup:
 	return;
 }
 
-void toggle_dumpstats_signal()
+void toggle_dumpstats_signal(int signal_number)
 {
 	dumpstats_signal ^= 1;
 }

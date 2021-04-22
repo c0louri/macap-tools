@@ -95,14 +95,30 @@ def read_vma_map(pid, anchors=False):
 		return lines
 	return None
 
-def read_vma_pagemap_file(filename):
+def read_pagecollect_file(filename):
 	with open(filename, 'r') as f:
 		lines = [line.rstrip('\n') for line in f]
 		# split lines list because it contains info for vma and pagemap
 		i = 0
 		while not lines[i].startswith("~!~"):
 			i += 1
-	return lines[ : i], lines[i+1 : ]
+	# save lines for vma and pagemap
+	vma_lines = lines[ : i]
+	pagemap_lines = lines[i+1 : ]
+	# get lines of coverage
+	i = 0
+	st = -1
+	end = 0
+	while i < len(pagemap_lines):
+		line = pagemap_lines[i]
+		if line.startswith('----------') and st == -1:
+			st = i
+		elif line.startswith('total_present_working_set'):
+			end = i
+		i += 1
+	cov_lines = pagemap_lines[st: (end+1)]
+	return cov_text
+	return vma_lines, pagemap_lines, cov_lines
 
 ###############################
 
@@ -231,6 +247,7 @@ def read_custom_pagemap(pagemap_file_or_lines, VMAs, read_file=False) :
 	pages = sorted(pages, key=lambda x: x[0])
 	return pages, total_present_pages
 
+
 """
 pagemap : it should be the return list of read_custom_pagemap()
 """
@@ -290,25 +307,61 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
 				total_bad_thp += 1
 	return offsets, pages_good_offset, pages_bad_offset, total_pres_p_in_subvmas
 
+
+def parse_rawcov_dict(dict_lines):
+	cov_dict = {}
+	for (tlb_type, lines) in dict_lines.items():
+		d = {}
+		d['entries'] = int(lines[0].rstrip('\n').split(' ')[1])
+		d['coverage'] = int(lines[1].split(' ')[1])
+		d['cov_32'] = float(lines[3].split(' ')[3].rstrip('%'))
+		d['cov_64'] = float(lines[4].split(' ')[3].rstrip('%'))
+		d['cov_128'] = float(lines[5].split(' ')[3].rstrip('%'))
+		d['cov_256'] = float(lines[6].split(' ')[3].rstrip('%'))
+		d['cov_80p'] = int(lines[8].split(' ')[8])
+		d['cov_90p'] = int(lines[9].split(' ')[8])
+		d['cov_99p'] = int(lines[10].split(' ')[8])
+		d['cov_80p_exact'] = float(lines[8].split(' ')[11].rstrip('%)'))
+		d['cov_90p_exact'] = float(lines[9].split(' ')[11].rstrip('%)'))
+		d['cov_99p_exact'] = float(lines[10].split(' ')[11].rstrip('%)'))
+		cov_dict[tlb_type] = d
+	return cov_dict
+
+
+def parse_coverage(coverage_lines):
+	dict_lines = {}
+	i = 0
+	while i < len(coverage_lines):
+		line = coverage_lines[i]
+		if line.startswith("total_Virtual_TLB_entries"):
+			dict_lines["Virtual_TLB"] = coverage_lines[i : i+11]
+		elif line.startswith("total_Range_TLB_entries"):
+			dict_lines["Range_TLB"] = coverage_lines[i : i+11]
+		elif line.startswith("4K pages"):
+			pages_4k = int(line.rstrip('\n').split(' ')[1])
+		elif line.startswith("2M pages"):
+			pages_2m = int(line.rstrip('\n').split(' ')[1])
+		i += 1
+	cov_dict = parse_rawcov_dict(dict_lines)
+	cov_dict["2M pages"] = pages_2m
+	cov_dict["4K pages"] = pages_4k
+	return cov_dict
+
+
+def get_total_distinct_subvmas(vmas):
+	subvmas = []
+	for vma in vmas.value():
+		for svma in vma.subVMAs:
+			if svma not in subvmas:
+				subvmas.append(svma)
+	return len(subvmas), subvmas
+
 def get_total_pages(vmas):
 	total_pages = 0 # present and not present pages
 	for vma in vmas.values():
 		total_pages += vma.size
 	return total_pages
 
-def get_coverage(lines):
-	i = 0
-	st = -1
-	end = 0
-	while i < len(lines):
-		line = lines[i]
-		if line.startswith('----------') and st == -1:
-			st = i
-		elif line.startswith('total_present_working_set'):
-			end = i
-		i += 1
-	cov_text='\n'.join(lines[st: (end+1)])
-	return cov_text
 
 def print_pagemap_list(pagemap):
 	for entry in pagemap:
@@ -318,33 +371,41 @@ def print_pagemap_list(pagemap):
 
 # main for compined vma and pagemap lines
 def main():
-	args_number = len(sys.argv)
 	args = sys.argv
-	only_coverage = False
-	only_vma = False
-	if args_number == 2:
+	# default case is complete_results
+	if len(sys.argv) == 2:
 		file_from_cpp = args[1]
-	elif args_number == 3 and args[2]=='only_cov':
+		case = "complete_results"
+	elif len(sys.argv) == 3:
 		file_from_cpp = args[1]
-		only_coverage = True
-	elif args_number == 3 and args[2]=='only_vma':
-		file_from_cpp = args[1]
-		only_vma = True
+		case = args[2]
 	else:
-		print('It needs a single parameter: the name of te file created by page-collect.run')
-		print('Output is:')
-		print('Present in subVMAs, Good-offset, Bad-offset (all in #4K pages)')
+		print("Wrong parameters! 1st: file from pagecollect, 2nd: (optional) action, default=only_offsets")
 		exit()
-	vma_lines, pagemap_lines = read_vma_pagemap_file(file_from_cpp)
-	if only_coverage:
-		print(get_coverage(pagemap_lines))
-	elif only_vma:
+	vma_lines, pagemap_lines, cov_lines = read_pagecollect_file(file_from_cpp)
+	VMAs = create_all_vma(vma_lines, True)
+	custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
+	offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+	num_vmas = len(VMAs)
+	num_distinct_subvmas, distinct_subvmas = get_total_distinct_subvmas(VMAs)
+	cov_stats = parse_coverage(cov_lines)
+	cov_32 = cov_stats["Range_TLB"]['cov_32']
+	cov_64 = cov_stats["Range_TLB"]['cov_64']
+	cov_128 = cov_stats["Range_TLB"]['cov_128']
+	cov_99p_ranges = cov_stats["Range_TLB"]['cov_99p']
+	if case=="only_cov":
+		print('\n'.join(cov_lines))
+	elif case=="only_vma":
 		print('\n'.join(vma_lines))
-	else:
-		VMAs = create_all_vma(vma_lines, True)
-		custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
-		offsets, good_p, bad_p, total_pres_svma = create_offset_map(custom_pagemap, VMAs, True)
+	elif case == "only_offset":
 		print('{}, {}, {}'.format(total_pres_svma, good_p[0], bad_p[0]))
+	elif case == "complete_results":
+		print('{}, {}, {}, {}, {}, {}'.format( \
+			num_vmas, num_distinct_subvmas, \
+			cov_32, cov_64, cov_128, cov_99p_ranges, bad_p[0]))
+	else:
+		print("Wrong case! Possible values=only_cov, only_vma, only_offset, complete_results")
+
 
 if __name__ == "__main__":
     main()

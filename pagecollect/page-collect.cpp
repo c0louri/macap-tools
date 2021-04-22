@@ -53,15 +53,6 @@ uint64_t Regular_TLB_4K = 0;
 uint64_t Regular_TLB_2M = 0;
 
 
-static struct option opts[] = {
-    { "pid"       , 1, NULL, 'p' },
-    { "out-file"  , 1, NULL, 'f' },
-    { "raw_data_print", 1, NULL, 'r'},
-    { "help"      , 0, NULL, 'h' },
-    { NULL        , 0, NULL, 0 }
-};
-
-
 // is_directory() --
 static bool is_directory(const char *dirname)
 {
@@ -75,6 +66,7 @@ static bool is_directory(const char *dirname)
     return (n == 0 && (buf.st_mode & S_IFDIR) != 0)? TRUE: FALSE;
 
 }
+
 
 // is_wholly_numeric() --
 static bool is_wholly_numeric(const char *str)
@@ -93,6 +85,7 @@ static bool is_wholly_numeric(const char *str)
 
 }
 
+
 void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, int is_thp) {
     if (pfn == 0) // page not present
         fprintf(out,  "0x%-16lx p: -1 o: 0 np\n", vaddr);
@@ -105,12 +98,14 @@ void print_page_info(FILE *out, uint64_t vaddr, uint64_t pfn, int is_thp) {
     }
 }
 
+
 void print_hist(FILE *out, std::map<uint64_t, uint64_t, std::greater<uint64_t> > &hist, const char* outstring) {
     if (hist.size()){
         for(std::map<uint64_t, uint64_t>::iterator it=hist.begin(); it!=hist.end(); ++it)
             fprintf(out, "%lu : %lu\n", it->first, it->second);
     }
 }
+
 
 void print_offset_hist(FILE *out, std::map<uint64_t, uint64_t> &hist, const char* outstring) {
     if (hist.size()){
@@ -202,24 +197,6 @@ void print_range_hist(FILE *out, std::map<uint64_t, uint64_t, std::greater<uint6
 }
 
 
-
-
-// usage() --
-static void usage(void)
-{
-    fprintf(stderr,
-        "usage: page-collect {switches}\n"
-        "switches:\n"
-        " -p pid          -- Collect only for process with $pid\n"
-        " -o out-file     -- Output file name (def=%s)\n"
-        " -r              -- Print to file raw data of hists (def is not)\n"
-        " -m              -- Print to file pagemap raw data (def is not)\n"
-        "\n",
-        OUT_NAME);
-}
-
-
-
 void update_anchor_tlb(std::map<uint64_t, uint64_t, std::greater<uint64_t> > &Anchor_TLB_hist, std::map<uint64_t, uint64_t, std::greater<uint64_t> > &Range_TLB_hist, unsigned long start_vpn, unsigned long end_vpn){
 
 int anchor_distance = DEFAULT_ANCHOR_DISTANCE;
@@ -276,7 +253,7 @@ unsigned long aligned_vpn;
 }
 
 
-extern "C" int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw_data, int print_pagemap)
+int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw_data, int print_pagemap)
 {
     int n;
     FILE *m   = NULL;
@@ -475,7 +452,7 @@ extern "C" int collect_pagemap_hist(pid_t app_pid, char *out_name, int print_raw
                             current_page_size=512;
                         }
                         else {
-                            printf("What is going on %lu %lu\n", vpn, pfn);
+                            printf("What is going on %lx %llx\n", vpn, pfn);
                             Regular_TLB_4K++;
                             current_page_size=1;
                         //	assert(0);
@@ -595,46 +572,4 @@ do_continue:
     }
 
     return retval;
-}
-
-
-// main() --
-int main(int argc, char *argv[])
-{
-    int c;
-    char *out_name = OUT_NAME;
-    pid_t opt_pid = 0;	/* process to walk */
-    int print_raw_data = 0;
-    int print_pagemap = 0;
-
-
-    // Process command-line arguments.
-    while ((c = getopt_long(argc, argv, "o:p:rmh", opts, NULL)) != -1) {
-        switch (c) {
-        case 'o':
-            out_name = optarg;
-            break;
-        case 'p':
-            opt_pid = strtoll(optarg, NULL, 0);
-            if (opt_pid <= 0) {
-                usage();
-                exit(-1);
-            }
-            break;
-        case 'r':
-            print_raw_data = 1;
-            break;
-        case 'm': // print pagemap into file
-            print_pagemap = 1;
-            break;
-        case 'h':
-            usage();
-            exit(0);
-        default:
-            usage();
-            exit(1);
-        }
-    }
-
-    return collect_pagemap_hist(opt_pid, out_name, print_raw_data, print_pagemap);
 }

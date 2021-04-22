@@ -3,8 +3,6 @@
 BENCH=liblinear_2
 BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
 FAILED_ALLOCS_AFTER="2 1 0 2 3 4 5 10 20"
-break_chunks="0"
-CAP_LOW_LIMITS="0"
 SPLIT_THP="split"
 # STATS_PERIODS="5 30"
 
@@ -31,6 +29,7 @@ fi
 PROJECT_LOC=$(pwd)
 
 LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
+# LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
 
 #PREFER MEM MODE
 if [[ "x${PREFER_MEM_MODE}" == "xyes" ]]; then
@@ -59,6 +58,7 @@ GLOBAL_RES_FOLDER=results
 export NTHREADS=${CPUS}
 CUR_PWD=`pwd`
 
+cat /proc/vmstat | grep defrag > vmstat_init.out
 
 for SPLIT in $SPLIT_THP; do
     if [[ "x${SPLIT}" == "xnosplit" ]]; then
@@ -74,16 +74,26 @@ for SPLIT in $SPLIT_THP; do
         BENCH_CONF="${BENCH}_${SPLIT}_${FAILS}"
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}"
         mkdir $RES_FOLDER
+        # save initial values of vmstat, capaging counters
+        cat /proc/vmstat | grep memdefrag > counters_start.out
+        echo "Capaging failure 4K (0-order) counters:" >> counters_start.out
+        cat /proc/capaging/0/failure >> counters_start.out
+        echo "Capaging failure 2M (9-order) counters:" >> counters_start.out
+        cat /proc/capaging/9/failure >> counters_start.out
         ${NUMACTL_CMD} -- ${BENCH_RUN} 2> ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cycles.txt
+        # save values of vmstat, capaging counters after execution
+        cat /proc/vmstat | grep memdefrag > counters_end.out
+        echo "Capaging failure 4K (0-order) counters:" >> counters_end.out
+        cat /proc/capaging/0/failure >> counters_end.out
+        echo "Capaging failure 2M (9-order) counters:" >> counters_end.out
+        cat /proc/capaging/9/failure >> counters_end.out
         echo "Printing stats..."
-        ./print_stats.sh > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt  &
-        ./print_cov_stats.sh > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cov_stats.txt &
-        ./print_vma_stats.sh > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_vma_map.txt &
-        wait
-        #mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/${BENCH}_${SPLIT}_${LIMIT}_${FAILS}
-        #sleep 1
-        sync; echo 3 > /proc/sys/vm/drop_caches
-        #sleep 1
+        ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
+        # move outputs of counters to res_folder of benchmark and change ownership to user (non-root)
+        mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/
+        mv counters* ${CUR_PWD}/${RES_FOLDER}/
+        chmod -R user ${CUR_PWD}/
+        # sync; echo 3 > /proc/sys/vm/drop_caches # drop all OS' caches
         echo "benchmark ended"
     done
 done
