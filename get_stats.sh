@@ -32,11 +32,11 @@ do
     POST_FILE=pagemap_${PID}_${ITER}_post.out
     if [[ -e $POST_FILE ]]; then
         if [ "x$ACTION" != "x" ]; then
-            CMD="python3 print_stats.py ${PRE_FILE}"
+            CMD="python3 print_stats.py ${POST_FILE}"
         else
-            CMD="python3 print_stats.py ${PRE_FILE} ${ACTION}"
+            CMD="python3 print_stats.py ${POST_FILE} ${ACTION}"
         fi
-        echo "\n${ITER}_POST_DEFRAG:"
+        echo "${ITER}_POST_DEFRAG:"
         eval $CMD
     else
         continue

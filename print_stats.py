@@ -117,7 +117,6 @@ def read_pagecollect_file(filename):
 			end = i
 		i += 1
 	cov_lines = pagemap_lines[st: (end+1)]
-	return cov_text
 	return vma_lines, pagemap_lines, cov_lines
 
 ###############################
@@ -338,9 +337,9 @@ def parse_coverage(coverage_lines):
 		elif line.startswith("total_Range_TLB_entries"):
 			dict_lines["Range_TLB"] = coverage_lines[i : i+11]
 		elif line.startswith("4K pages"):
-			pages_4k = int(line.rstrip('\n').split(' ')[1])
+			pages_4k = int(line.rstrip('\n').split()[2])
 		elif line.startswith("2M pages"):
-			pages_2m = int(line.rstrip('\n').split(' ')[1])
+			pages_2m = int(line.rstrip('\n').split()[2])
 		i += 1
 	cov_dict = parse_rawcov_dict(dict_lines)
 	cov_dict["2M pages"] = pages_2m
@@ -350,7 +349,7 @@ def parse_coverage(coverage_lines):
 
 def get_total_distinct_subvmas(vmas):
 	subvmas = []
-	for vma in vmas.value():
+	for vma in vmas.values():
 		for svma in vma.subVMAs:
 			if svma not in subvmas:
 				subvmas.append(svma)
@@ -400,9 +399,10 @@ def main():
 	elif case == "only_offset":
 		print('{}, {}, {}'.format(total_pres_svma, good_p[0], bad_p[0]))
 	elif case == "complete_results":
+		print('Offsets_stats: {}, {}, {}'.format(total_pres_svma, good_p[0], bad_p[0]))
 		print('{}, {}, {}, {}, {}, {}'.format( \
 			num_vmas, num_distinct_subvmas, \
-			cov_32, cov_64, cov_128, cov_99p_ranges, bad_p[0]))
+			cov_32, cov_64, cov_128, cov_99p_ranges))
 	else:
 		print("Wrong case! Possible values=only_cov, only_vma, only_offset, complete_results")
 

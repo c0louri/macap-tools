@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#BENCH=liblinear_fresh2
-#BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-BENCH="XSBench_fresh"
-BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
+BENCH=liblinear_fresh
+BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
+#BENCH="XSBench"
+#BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
 
-FAILED_ALLOCS_AFTER=""
+FAILED_ALLOCS_AFTER="0"
 SPLIT_THP="split"
 # STATS_PERIODS="15"
 
@@ -26,7 +26,7 @@ else
 fi
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
-	STATS_PERIOD=5
+	STATS_PERIOD=15
 fi
 
 PROJECT_LOC=$(pwd)

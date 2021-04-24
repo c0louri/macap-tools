@@ -2,4 +2,5 @@
 *.out
 *.dat
 *.run
+results/
 __pycache__/
