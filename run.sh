@@ -75,7 +75,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     sysctl vm.cap_2mb_alloc_fails=$FAILS
     echo "begin benchmark failed_allocs=${FAILS}, memfrag=$USE_MEMFRAG(size=$FRAG_SIZE"
     # start fragmentation tool if it is needed
-    if [ "x$USE_MEMFRAG" == "xyes"]; then
+    if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
         ./memfrag $FRAG_SIZE &
         FRAG_PID=$!
         sleep 1
@@ -104,7 +104,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     cat /proc/capaging/9/failure >> counters_end.out
 
     # kill fragmenter if it used
-    if [ "x$USE_MEMFRAG" == "xyes"]; then
+    if [[ "x$USE_MEMFRAG" == "xyes" ]]; then
         kill -USR1 $FRAG_PID
     fi
     echo "Printing stats..."
