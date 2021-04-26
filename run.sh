@@ -6,7 +6,8 @@ BENCH="XSBench_fresh"
 BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
 
 FAILED_ALLOCS_AFTER=""
-SPLIT_THP="split"
+USE_MEMFRAG="yes"
+FRAG_SIZE="5G"
 # STATS_PERIODS="15"
 
 echo always >/sys/kernel/mm/transparent_hugepage/enabled
@@ -63,40 +64,53 @@ CUR_PWD=`pwd`
 
 cat /proc/vmstat | grep defrag > vmstat_init.out
 
-for SPLIT in $SPLIT_THP; do
-    if [[ "x${SPLIT}" == "xnosplit" ]]; then
-        sysctl vm.defrag_split_thp=0
-    else
-        sysctl vm.defrag_split_thp=1
+for FAILS in $FAILED_ALLOCS_AFTER; do
+    sysctl vm.cap_2mb_alloc_fails=$FAILS
+    echo "begin benchmark split_thp=${SPLIT}, failed_allocs=${FAILS}, memfrag=$USE_MEMFRAG(size=$FRAG_SIZE"
+    # start fragmentation tool if it is needed
+    if [ "x$USE_MEMFRAG" == "xyes"]; then
+        ./memfrag $FRAG_SIZE &
+        FRAG_PID=$!
+        sleep 1
     fi
-    for FAILS in $FAILED_ALLOCS_AFTER; do
-        sysctl vm.cap_2mb_alloc_fails=$FAILS
-        echo "begin benchmark split_thp=${SPLIT}, failed_allocs=${FAILS}"
-        rm kdd12.tr.model
-        ./clean.sh
-        BENCH_CONF="${BENCH}_${FAILS}"
-        RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}"
-        mkdir $RES_FOLDER
-        # save initial values of vmstat, capaging counters
-        cat /proc/vmstat | grep memdefrag > counters_start.out
-        echo "Capaging failure 4K (0-order) counters:" >> counters_start.out
-        cat /proc/capaging/0/failure >> counters_start.out
-        echo "Capaging failure 2M (9-order) counters:" >> counters_start.out
-        cat /proc/capaging/9/failure >> counters_start.out
-        ${NUMACTL_CMD} -- ${BENCH_RUN} 2> ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cycles.txt
-        # save values of vmstat, capaging counters after execution
-        cat /proc/vmstat | grep memdefrag > counters_end.out
-        echo "Capaging failure 4K (0-order) counters:" >> counters_end.out
-        cat /proc/capaging/0/failure >> counters_end.out
-        echo "Capaging failure 2M (9-order) counters:" >> counters_end.out
-        cat /proc/capaging/9/failure >> counters_end.out
-        echo "Printing stats..."
-        ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
-        # move outputs of counters to res_folder of benchmark and change ownership to user (non-root)
-        #mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/
-        mv counters* ${CUR_PWD}/${RES_FOLDER}/
-        chown -R user ${CUR_PWD}/
-        # sync; echo 3 > /proc/sys/vm/drop_caches # drop all OS' caches
-        echo "benchmark ended"
-    done
+    # clean previous run's stats/outputs/etc
+    rm kdd12.tr.model
+    ./clean.sh
+
+    # save initial values of vmstat, capaging counters
+    cat /proc/vmstat | grep memdefrag > counters_start.out
+    echo "Capaging failure 4K (0-order) counters:" >> counters_start.out
+    cat /proc/capaging/0/failure >> counters_start.out
+    echo "Capaging failure 2M (9-order) counters:" >> counters_start.out
+    cat /proc/capaging/9/failure >> counters_start.out
+
+    BENCH_CONF="${BENCH}_${FAILS}"
+    RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}"
+    mkdir $RES_FOLDER
+    ${NUMACTL_CMD} -- ${BENCH_RUN} 2> ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cycles.txt
+
+    # save values of vmstat, capaging counters after execution
+    cat /proc/vmstat | grep memdefrag > counters_end.out
+    echo "Capaging failure 4K (0-order) counters:" >> counters_end.out
+    cat /proc/capaging/0/failure >> counters_end.out
+    echo "Capaging failure 2M (9-order) counters:" >> counters_end.out
+    cat /proc/capaging/9/failure >> counters_end.out
+
+    # kill fragmenter if it used
+    if [ "x$USE_MEMFRAG" == "xyes"]; then
+        kill -USR1 $FRAG_PID
+    fi
+    echo "Printing stats..."
+    # collect stats from pagemap files
+    ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
+    # calc counters of CAP, defrag for more complete stats
+    python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
+    # move pagemap files and counters
+    mv counters* ${CUR_PWD}/${RES_FOLDER}/
+    mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
+    rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
+    mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
+    chown -R user ${CUR_PWD}/
+    # sync; echo 3 > /proc/sys/vm/drop_caches # drop all OS' caches
+    echo "benchmark ended"
 done

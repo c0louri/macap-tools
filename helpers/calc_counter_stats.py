@@ -47,15 +47,25 @@ def parse_counter_file(file_name):
     f = open(file_name, 'r')
     lines = f.readlines()
     lines = [line.rstrip('\n') for line in lines]
-    defrag_lines = lines[0 : 14]
-    cap_4k_fails_lines = lines[15 : 28]
-    cap_2m_fails_lines = lines[29 : 42]  
+    # below code is because some counters* file have one more line
+    has_total_fails_line = False
+    for line in lines:
+        if "memdefrag_fails" in line:
+            has_total_fails_line = True
+    if has_total_fails_line:
+        defrag_lines = lines[0 : 15]
+        cap_4k_fails_lines = lines[16 : 29]
+        cap_2m_fails_lines = lines[30 : 43]
+    else:
+        defrag_lines = lines[0 : 14]
+        cap_4k_fails_lines = lines[15 : 28]
+        cap_2m_fails_lines = lines[29 : 42]
     # defrag
     defrag_vals = [int(line.split()[1]) for line in defrag_lines]
     dst_free_tries, dst_anon_tries, dst_file_tries = defrag_vals[2:5]
     dst_free_fails, dst_anon_fails, dst_file_fails = defrag_vals[5:8]
     dst_nonlru_fails, dst_unmov_fails = defrag_vals[8:10]
-    src_comp_fails, dst_comp_fails = defrag_vals[10:12]    
+    src_comp_fails, dst_comp_fails = defrag_vals[10:12]
 
     defrag_success = (dst_free_tries+dst_anon_tries+dst_free_tries) - \
                      (dst_free_fails+dst_anon_fails+dst_file_fails)
@@ -67,5 +77,28 @@ def parse_counter_file(file_name):
     total_cap_4k_fails = sum([int(line.split()[1]) for line in cap_4k_fails_lines])
     # calculate total 2m failures
     total_cap_2m_fails = sum([int(line.split()[1]) for line in cap_2m_fails_lines])
-    
-    return defrag_success, defrag_fails, total_cap_4k_fails, total_cap_2m_fails     
+
+    return defrag_success, defrag_fails, total_cap_4k_fails, total_cap_2m_fails
+
+
+def main():
+    args = sys.argv
+    if len(args) != 3:
+        print("Wrong number of arguments!")
+        exit()
+    start_file = args[1]
+    end_file = args[2]
+    def_succ_st, def_fails_st, cap_4k_fails_st, cap_2m_fails_st = parse_counter_file(start_file)
+    def_succ_end, def_fails_end, cap_4k_fails_end, cap_2m_fails_end = parse_counter_file(end_file)
+    def_succ_diff = def_succ_end - def_succ_st
+    def_fails_diff = def_fails_end = def_fails_st
+    cap_4k_fails_diff = cap_4k_fails_end - cap_4k_fails_st
+    cap_2m_fails_diff = cap_2m_fails_end - cap_2m_fails_st
+    #print("{}, {}, {}, {}".format(def_succ_diff, def_fails_diff, cap_4k_fails_diff, cap_2m_fails_diff))
+    print("Defrag successes (in 4K pages): ", def_succ_diff)
+    print("Defrag failures (in 4K pages): ", def_fails_diff)
+    print("Cap 4k fails: ", cap_4k_fails_diff)
+    print("Cap 2m fails: ", cap_2m_fails_diff)
+
+if __name__ == "__main__":
+    main()

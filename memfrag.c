@@ -13,8 +13,22 @@
 #include <fcntl.h>
 #include <limits.h>
 
+/*
+1st parameter : size (or number of 4k pages)
+2nd parameter (optional): huge page frag percentage
+3rd parameter (optional): free_frag_percentage (default = 50%)
+4th parameter (optional): use huge page (default is 1)
+5th paramter (optional): do compaction (default is 0)
+
+1st step: allocates whole size
+2nd step: frees memory up to size * free_frag_percentage%
+3rd step: blocks and waits for signal to repeat this process
+
+*/
+
+
 //#define CHUNK (1UL << 32)
-#define CHUNK (1UL << 30)
+#define CHUNK (1UL << 29)
 typedef ulong uint64_t;
 
 void usage(const char *prog, FILE *out)
@@ -24,7 +38,7 @@ void usage(const char *prog, FILE *out)
 	exit(out == stderr);
 }
 
-void usr_handler(int signal) 
+void usr_handler(int signal)
 {
 	printf("catch signal\n");
 	exit(-1);
@@ -46,14 +60,14 @@ uint64_t size_huge_tbl[] = {
 };
 
 uint64_t size_subhuge_tbl[] = {
-	1UL << 12, //4
-	1UL << 13, //8
-	1UL << 14, //16
-	1UL << 15, //32
-	1UL << 16, //64
-	1UL << 17, //128
-	1UL << 18, //256
-	1UL << 19, //512
+	1UL << 12, //4K
+	1UL << 13, //8K
+	1UL << 14, //16K
+	1UL << 15, //32K
+	1UL << 16, //64K
+	1UL << 17, //128K
+	1UL << 18, //256K
+	1UL << 19, //512K
 	1UL << 20, //1M
 };
 
@@ -73,7 +87,7 @@ static uint64_t random_range(uint64_t a,uint64_t b) {
         lower = b;
     } else {
         upper = b;
-        lower = a; 
+        lower = a;
     }
 
     range = upper - lower;
@@ -110,7 +124,7 @@ size_t getCurrentRSS( )
     fclose( fp );
     return (size_t)0L;    /* Can't read? */
   }
-  
+
   fclose( fp );
   return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
 
@@ -128,8 +142,8 @@ int main(int argc, char *argv[])
 	void **data;
 	sigset_t set;
 	struct sigaction sa;
-  int huge_page_frag_percentage;
-  int free_frag_percentage;
+	int huge_page_frag_percentage;
+	int free_frag_percentage;
 
 	printf("%s\n", argv[1]);
 
@@ -159,17 +173,17 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-	
+
 	if (argc < 2 || kbtotal == 0)
 		usage(argv[0], stderr);
 
 	if (argc >= 3)
 		huge_page_frag_percentage = atoi(argv[2]);
 
-  if (argc >= 4)
+	if (argc >= 4)
 		free_frag_percentage = atoi(argv[3]);
-  else
-    free_frag_percentage = 50;
+	else
+		free_frag_percentage = 50;
 
 	if (argc >= 5)
 		use_huge = atoi(argv[3]);
@@ -189,7 +203,7 @@ int main(int argc, char *argv[])
 
 	numchunk = kbtotal / CHUNK;
 	printf("allocate %llx memory,  numchunk = %d\n", kbtotal, numchunk);
-	data = mmap(0, sizeof(void *) * numchunk, 
+	data = mmap(0, sizeof(void *) * numchunk,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 
 	sa.sa_flags = 0;
@@ -234,51 +248,51 @@ retry:
 		//}
 	}
 
-  struct sysinfo si;
-  sysinfo(&si);
-  printf("Fragmenter %lu %lu %lu\n", getCurrentRSS(), si.totalram, kbtotal);
-  printf("%lu %lu %lu\n", huge_page_frag_percentage, numchunk, numchunk*huge_page_frag_percentage/100, numchunk-(numchunk*huge_page_frag_percentage/100));
-  numchunk_sub_huge = numchunk*huge_page_frag_percentage/100;
-  numchunk_huge=numchunk-(numchunk*huge_page_frag_percentage/100);
+	struct sysinfo si;
+	sysinfo(&si);
+	printf("Fragmenter %lu %lu %lu\n", getCurrentRSS(), si.totalram, kbtotal);
+	printf("%lu %lu %lu %lu\n", huge_page_frag_percentage, numchunk, numchunk*huge_page_frag_percentage/100, numchunk-(numchunk*huge_page_frag_percentage/100));
+	numchunk_sub_huge = numchunk*huge_page_frag_percentage/100;
+	numchunk_huge=numchunk-(numchunk*huge_page_frag_percentage/100);
 
-  int k;
-  while(getCurrentRSS()>(kbtotal*free_frag_percentage/100)){
-	  
-    for (i = 0 ; i < numchunk; i++) {
-      if(i <numchunk_sub_huge) {
+	int k;
+	while(getCurrentRSS()>(kbtotal*free_frag_percentage/100)){
 
-        for (j = 0; j < CHUNK; j+=(1UL<<20)) {
+		for (i = 0 ; i < numchunk; i++) {
+			if(i < numchunk_sub_huge) {
 
-          //for (k = 2, offset = 0; k < 20; k++) {
-			    //  madvise(data[i] + j + offset, ((1UL<<20) / (1<<k)), MADV_DONTNEED);
-			    //  offset += ((1UL<<20) / (1<<(k-1)));
-		      //}
-			    free_size = size_subhuge_tbl[random_range(0, 8)];
-			    //printf("%x, %lx\n", j, free_size);
-			    //munmap(data[i] + j, free_size);
-			    madvise(data[i] + j, free_size, MADV_DONTNEED);
-		    }
-      }
-      else{
-		    for (j = 0; j < CHUNK; j+=(1UL<<30)) {
-			    free_size = size_huge_tbl[random_range(0, 9)];
-			    //printf("%x, %lx\n", j, free_size);
-			    //munmap(data[i] + j, free_size);
-			    madvise(data[i] + j, free_size, MADV_DONTNEED);
-		    }
-      }
-	  }
-    printf("%lu %lu\n", getCurrentRSS(), si.totalram/2);
+				for (j = 0; j < CHUNK; j+=(1UL<<20)) {
 
-  }
+					//for (k = 2, offset = 0; k < 20; k++) {
+					//  madvise(data[i] + j + offset, ((1UL<<20) / (1<<k)), MADV_DONTNEED);
+					//  offset += ((1UL<<20) / (1<<(k-1)));
+					//}
+					free_size = size_subhuge_tbl[random_range(0, 8)];
+					//printf("%x, %lx\n", j, free_size);
+					//munmap(data[i] + j, free_size);
+					madvise(data[i] + j, free_size, MADV_DONTNEED);
+				}
+			}
+			else {
+				for (j = 0; j < CHUNK; j+=(1UL<<30)) {
+					free_size = size_huge_tbl[random_range(0, 9)];
+					//printf("%x, %lx\n", j, free_size);
+					//munmap(data[i] + j, free_size);
+					madvise(data[i] + j, free_size, MADV_DONTNEED);
+				}
+			}
+		}
+		printf("%lu %lu\n", getCurrentRSS(), si.totalram/2);
+
+	}
 	//printf("pausing\n");
 	//pause();
 	//sigwaitinfo(&set, NULL);
-  	//kill(getppid(), SIGUSR2);
-  	//printf("Sending signal to %d\n",getppid());
+ 	//kill(getppid(), SIGUSR2);
+	//printf("Sending user to %d\n",getppid());
 	pause();
-	
-  if (compaction) {
+
+	if (compaction) {
 		printf("compaction\n");
 		fd = open("/proc/sys/vm/compact_memory", O_WRONLY);
 		if (fd < 0)
@@ -292,7 +306,7 @@ retry:
 	sleep(5);
 
 	printf("retry\n");
-	for (i = 0 ; i < numchunk; i++) 
+	for (i = 0 ; i < numchunk; i++)
 		munmap(data[i], CHUNK);
 
 	goto retry;
