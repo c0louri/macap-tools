@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#BENCH=liblinear_fresh2
-#BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-BENCH="XSBench_fresh"
-BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
+BENCH=liblinear_frag
+BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
+#BENCH="XSBench_frag"
+#BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
 
 FAILED_ALLOCS_AFTER=""
 USE_MEMFRAG="yes"
@@ -19,11 +19,18 @@ sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
 
 
-if [ "x$1" != "x" ]
+if [ "x$2" != "x" ]
 then
 	export CPUS=$1
 else
 	export CPUS=1
+fi
+
+if [ "x$1" != "x" ]
+then
+	FAILED_ALLOCS_AFTER=$1
+else
+	FAILED_ALLOCS_AFTER=0
 fi
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
@@ -66,7 +73,7 @@ cat /proc/vmstat | grep defrag > vmstat_init.out
 
 for FAILS in $FAILED_ALLOCS_AFTER; do
     sysctl vm.cap_2mb_alloc_fails=$FAILS
-    echo "begin benchmark split_thp=${SPLIT}, failed_allocs=${FAILS}, memfrag=$USE_MEMFRAG(size=$FRAG_SIZE"
+    echo "begin benchmark failed_allocs=${FAILS}, memfrag=$USE_MEMFRAG(size=$FRAG_SIZE"
     # start fragmentation tool if it is needed
     if [ "x$USE_MEMFRAG" == "xyes"]; then
         ./memfrag $FRAG_SIZE &
