@@ -1,14 +1,15 @@
 #!/bin/bash
 
-BENCH=liblinear_frag
-BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-#BENCH="XSBench_frag"
-#BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
+## 1st -> CPUs
+## 2nd -> alloc fails allowed
+## 3rd -> yes or no for fragmenter use
+## 4th -> if yes, nodefrag
+## 5th -> defrag only marked pages
 
-FAILED_ALLOCS_AFTER=""
-USE_MEMFRAG="yes"
-FRAG_SIZE="5G"
-# STATS_PERIODS="15"
+#BENCH=liblinear
+#BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
+BENCH=XSBench
+BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t 10 -s XL -l 64 -G unionized"
 
 echo always >/sys/kernel/mm/transparent_hugepage/enabled
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
@@ -17,36 +18,49 @@ echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 #echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
+#sysctl vm.defrag_show_only_subchunk_stats=1
+echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs 
 
+export CPUS=$1
+FAILED_ALLOCS_AFTER=$2
+USE_MEMFRAG=$3
+USE_DEFRAG=$4
+MARKED_DEFRAG=$5
 
-if [ "x$2" != "x" ]
-then
-	export CPUS=$1
+FRAG_SIZE="140G"
+
+if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
+	BENCH="${BENCH}_frag"
 else
-	export CPUS=1
+	BENCH="${BENCH}_fresh"
 fi
 
-if [ "x$1" != "x" ]
-then
-	FAILED_ALLOCS_AFTER=$1
-else
-	FAILED_ALLOCS_AFTER=0
-fi
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
-	STATS_PERIOD=5
+	STATS_PERIOD=10
 fi
 
 PROJECT_LOC=$(pwd)
 
-LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
-#LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
+if [[ "x${USE_DEFRAG}" == "xno" ]]; then
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
+    BENCH="${BENCH}_nodef"
+else
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
+fi
+
+if [[ "x${MARKED_DEFRAG}" == "xno" ]]; then
+    sysctl vm.defrag_only_misplaced=0
+else
+    sysctl vm.defrag_only_misplaced=1
+    BENCH="${BENCH}_mark"
+fi
 
 #PREFER MEM MODE
 if [[ "x${PREFER_MEM_MODE}" == "xyes" ]]; then
-NUMACTL_CMD="${LAUNCHER} -N 0 --prefer_memnode 0"
+	NUMACTL_CMD="${LAUNCHER} -N 0 --prefer_memnode 0"
 else
-NUMACTL_CMD="${LAUNCHER} -N 0 -m 0"
+	NUMACTL_CMD="${LAUNCHER} -N 0 -m 0"
 fi
 
 # set CPUMASK for numa config
@@ -73,14 +87,14 @@ cat /proc/vmstat | grep defrag > vmstat_init.out
 
 for FAILS in $FAILED_ALLOCS_AFTER; do
     sysctl vm.cap_2mb_alloc_fails=$FAILS
-    echo "begin benchmark failed_allocs=${FAILS}, memfrag=$USE_MEMFRAG(size=$FRAG_SIZE"
+    echo "begin benchmark ${BENCH} failed_allocs=${FAILS}, memfrag=${USE_MEMFRAG} size=${FRAG_SIZE}"
     # start fragmentation tool if it is needed
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
-        ./memfrag $FRAG_SIZE &
+        ./memfrag ${FRAG_SIZE} 5 10 &
         FRAG_PID=$!
-        sleep 1
+        sleep 140
     fi
-    # clean previous run's stats/outputs/etc
+    ## clean previous run's stats/outputs/etc
     rm kdd12.tr.model
     ./clean.sh
 
@@ -114,6 +128,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
     # move pagemap files and counters
     mv counters* ${CUR_PWD}/${RES_FOLDER}/
+    dmesg > ${CUR_PWD}/${RES_FOLDER}/dmesg.out
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
     mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
@@ -121,3 +136,4 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     # sync; echo 3 > /proc/sys/vm/drop_caches # drop all OS' caches
     echo "benchmark ended"
 done
+#sudo poweroff

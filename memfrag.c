@@ -28,7 +28,7 @@
 
 
 //#define CHUNK (1UL << 32)
-#define CHUNK (1UL << 29)
+#define CHUNK (1UL << 30)
 typedef ulong uint64_t;
 
 void usage(const char *prog, FILE *out)

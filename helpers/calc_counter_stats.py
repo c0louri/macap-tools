@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import sys
 """ template of counters_*.out:
 memdefrag_defrag 0
 memdefrag_scan 0
@@ -91,14 +91,18 @@ def main():
     def_succ_st, def_fails_st, cap_4k_fails_st, cap_2m_fails_st = parse_counter_file(start_file)
     def_succ_end, def_fails_end, cap_4k_fails_end, cap_2m_fails_end = parse_counter_file(end_file)
     def_succ_diff = def_succ_end - def_succ_st
-    def_fails_diff = def_fails_end = def_fails_st
+    def_fails_diff = def_fails_end - def_fails_st
     cap_4k_fails_diff = cap_4k_fails_end - cap_4k_fails_st
     cap_2m_fails_diff = cap_2m_fails_end - cap_2m_fails_st
+    def_fails_diff_gb = def_fails_diff*4 / (1024*1024)
+    def_succ_diff_gb = def_succ_diff*4 / (1024*1024)
+    cap_4k_fails_diff_gb = cap_4k_fails_diff*4 / (1024*1024)
+    cap_2m_fails_diff_gb = cap_2m_fails_diff*2 / (1024)
     #print("{}, {}, {}, {}".format(def_succ_diff, def_fails_diff, cap_4k_fails_diff, cap_2m_fails_diff))
-    print("Defrag successes (in 4K pages): ", def_succ_diff)
-    print("Defrag failures (in 4K pages): ", def_fails_diff)
-    print("Cap 4k fails: ", cap_4k_fails_diff)
-    print("Cap 2m fails: ", cap_2m_fails_diff)
+    print("Defrag successes (in 4K pages): {} ({:.4f}GB)".format(def_succ_diff, def_succ_diff_gb))
+    print("Defrag failures (in 4K pages): {} ({:.4f}GB)".format(def_fails_diff, def_fails_diff_gb))
+    print("Cap 4k fails: {} ({:.4f}GB)".format(cap_4k_fails_diff, cap_4k_fails_diff_gb))
+    print("Cap 2m fails: {} ({:.4f}GB)".format(cap_2m_fails_diff, cap_2m_fails_diff_gb))
 
 if __name__ == "__main__":
     main()

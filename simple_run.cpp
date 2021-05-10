@@ -58,6 +58,7 @@ volatile int info_done = 0;
 int dumpstats_signal = 1;
 int dumpstats_period = 1;
 int mem_defrag = 0;
+int mem_defrag_with_syscall = 0;
 int capaging = 0;
 int print_raw_pagemap = 0;
 int print_raw_hist_data = 0;
@@ -159,7 +160,7 @@ void read_stats_periodically(pid_t app_pid) {
 			loop_count++;
 			// get custom_pagemap from page-collect.cpp
             if (loop_count %defrag_freq_factor == 0)
-                printf("%d)Pre collecting...", file_index);
+                printf("%d)Collecting...", file_index);
 			//ret = collect_custom_pagemap(app_pid, out_name);
 			sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_pre.out -r -m\n", app_pid, app_pid, file_index);
 			// measure time spot (pre-precollect pre-defrag)
@@ -173,9 +174,11 @@ void read_stats_periodically(pid_t app_pid) {
             // save collect time
             total_collect_us += (post_col.tv_sec - pre_col.tv_sec) * 1000000;
             total_collect_us += (post_col.tv_usec - pre_col.tv_usec);	
-			if (loop_count % defrag_freq_factor == 0) {
+			//
+            // invoking defrag with syscall`
+            if (loop_count % defrag_freq_factor == 0) {
 				/* defrag memory before scanning  */
-				if (mem_defrag) {
+				if (mem_defrag_with_syscall) {
                     gettimeofday(&pre_def, NULL);
 					if (defrag_online_stats) {
                         sprintf(iter_index, "%d:\n", file_index);
@@ -196,7 +199,7 @@ void read_stats_periodically(pid_t app_pid) {
                     // save defrag time
                     total_defrag_us += (post_def.tv_sec - pre_def.tv_sec) * 1000000;
                     total_defrag_us += (post_def.tv_usec - pre_def.tv_usec);	
-                    printf("Post collecting...");
+                    printf("Post-defrag collecting...");
 			        // ret = collect_custom_pagemap(app_pid, out_name);
 					sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_post.out -r -m\n", app_pid, app_pid, file_index);
 					// measure time spot (pre-postcollect post-defrag)
@@ -318,6 +321,7 @@ int main(int argc, char** argv)
 		{"defrag_freq_factor", required_argument, 0, OPT_DEFRAG_FREQ_FACTOR},
 		{"nomigration", no_argument, &no_migration, 1},
 		{"mem_defrag", no_argument, &mem_defrag, 1},
+		{"mem_defrag_with_syscall", no_argument, &mem_defrag_with_syscall, 1},
 		{"capaging", no_argument, &capaging, 1},
 		{"pr_pagemap", no_argument, &print_raw_pagemap, 1},
 		{"pr_hist_data", no_argument, &print_raw_hist_data, 1},
@@ -498,10 +502,11 @@ int main(int argc, char** argv)
 			dup2(child_stdout_fd, 1);
 			close(child_stdout_fd);
 		}
-
-		if (mem_defrag)
+        
+        // enable mem_defrag for this process
+		if (mem_defrag || mem_defrag_with_syscall)
 			scan_process_memory(0, NULL, 0, 1);
-
+        // enable CAP for this process
 		if (capaging) {
 			char *child_names[1];
 			child_names[0] = basename(argv[0]);
