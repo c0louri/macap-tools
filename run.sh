@@ -53,7 +53,7 @@ PROJECT_LOC=$(pwd)
 if [[ "x${USE_DEFRAG}" == "xno" ]]; then
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
     BENCH="${BENCH}_nodef"
-elif [[ "${USE_DEFRAG}" == "xsyscall" ]]; then
+elif [[ "x${USE_DEFRAG}" == "xsyscall" ]]; then
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 else

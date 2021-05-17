@@ -21,6 +21,7 @@ import sys
 15 INVALID_PFN:	0
 16 EXCEED_MEMORY:	0
 17 GUARD_PAGE:	0
+PCP_PAGE: 0
 OCCUPIED:	0
 BUDDY_OCCUPIED:	0
 WRONG_ALIGNMENT:	0
@@ -34,6 +35,7 @@ Capaging failure 2M (9-order) counters:
 28 INVALID_PFN:	0
 EXCEED_MEMORY:	0
 GUARD_PAGE:	0
+PCP_PAGE: 0
 OCCUPIED:	0
 BUDDY_OCCUPIED:	0
 WRONG_ALIGNMENT:	0
@@ -50,7 +52,7 @@ def parse_counter_file(file_name):
     lines = f.readlines()
     lines = [line.rstrip('\n') for line in lines]
     cap_4k_fails_start_line = 15
-    cap_2m_fails_start_line = 28
+    cap_2m_fails_start_line = 29
 
     # below code is because some counters* file have one more line
     has_total_fails_line = False
@@ -63,8 +65,8 @@ def parse_counter_file(file_name):
             cap_2m_fails_start_line += 1
 
     defrag_lines = lines[0 : cap_4k_fails_start_line-1]
-    cap_4k_fails_lines = lines[cap_4k_fails_start_line : cap_2m_fails_start_line-1]
-    cap_2m_fails_lines = lines[cap_2m_fails_start_line : cap_2m_fails_start_line+12]
+    cap_4k_fails_lines = lines[cap_4k_fails_start_line : cap_4k_fails_start_line+13]
+    cap_2m_fails_lines = lines[cap_2m_fails_start_line : cap_2m_fails_start_line+13]
     # defrag
     defrag_vals = [int(line.split()[1]) for line in defrag_lines]
     dst_free_tries, dst_anon_tries, dst_file_tries = defrag_vals[2:5]
