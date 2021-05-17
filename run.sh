@@ -16,10 +16,13 @@ echo never >/sys/kernel/mm/transparent_hugepage/defrag
 echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 #echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
 #echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+
 sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
-#sysctl vm.defrag_show_only_subchunk_stats=1
-echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs 
+sysctl vm.cap_aligned_offset=1
+sysctl vm.defrag_show_only_subchunk_stats=1
+
+echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
 export CPUS=$1
 FAILED_ALLOCS_AFTER=$2
@@ -29,15 +32,20 @@ MARKED_DEFRAG=$5
 
 FRAG_SIZE="140G"
 
+if [[ "x${STATS_PERIOD}" == "x" ]]; then
+    STATS_PERIOD=20
+    if [[ "x${BENCH}" == "xliblinear" ]]; then
+         STATS_PERIOD=60
+    fi
+    if [[ "x${BENCH}" == "xXSBench" ]]; then
+        STATS_PERIOD=10
+    fi
+fi
+
 if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
 	BENCH="${BENCH}_frag"
 else
 	BENCH="${BENCH}_fresh"
-fi
-
-
-if [[ "x${STATS_PERIOD}" == "x" ]]; then
-	STATS_PERIOD=10
 fi
 
 PROJECT_LOC=$(pwd)
@@ -45,6 +53,9 @@ PROJECT_LOC=$(pwd)
 if [[ "x${USE_DEFRAG}" == "xno" ]]; then
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
     BENCH="${BENCH}_nodef"
+else if [[ "${USE_DEFRAG}" == "xsyscall" ]]; then
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
+    echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 else
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
 fi
@@ -104,6 +115,8 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     cat /proc/capaging/0/failure >> counters_start.out
     echo "Capaging failure 2M (9-order) counters:" >> counters_start.out
     cat /proc/capaging/9/failure >> counters_start.out
+     echo "THP collapse vmstat counters:" >> counters_start.out
+    cat /proc/vmstat | grep thp_promote >> counters_start.out
 
     BENCH_CONF="${BENCH}_${FAILS}"
     RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}"
@@ -116,6 +129,8 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     cat /proc/capaging/0/failure >> counters_end.out
     echo "Capaging failure 2M (9-order) counters:" >> counters_end.out
     cat /proc/capaging/9/failure >> counters_end.out
+    echo "THP collapse vmstat counters:" >> counters_end.out
+    cat /proc/vmstat | grep thp_promote >> counters_end.out
 
     # kill fragmenter if it used
     if [[ "x$USE_MEMFRAG" == "xyes" ]]; then

@@ -159,21 +159,19 @@ void read_stats_periodically(pid_t app_pid) {
 		if (dumpstats_signal) {
 			loop_count++;
 			// get custom_pagemap from page-collect.cpp
-            if (loop_count %defrag_freq_factor == 0)
-                printf("%d)Collecting...", file_index);
-			//ret = collect_custom_pagemap(app_pid, out_name);
+            // if (loop_count % defrag_freq_factor == 0)
+            printf("%d)Collecting...", file_index);
 			sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_pre.out -r -m\n", app_pid, app_pid, file_index);
 			// measure time spot (pre-precollect pre-defrag)
 		    gettimeofday(&pre_col, NULL);
-            ret = system(command); printf("Done\n");
-            if (ret != 0) {
-                printf("error: %d in system(precollect)\n", ret);
-            }
+            ret = system(command);
+			printf("Done\n");
+            if (ret != 0) printf("error: %d in system(precollect)\n", ret);
 			// measure time spot (post-precollect pre-defrag)
 		    gettimeofday(&post_col, NULL);
             // save collect time
             total_collect_us += (post_col.tv_sec - pre_col.tv_sec) * 1000000;
-            total_collect_us += (post_col.tv_usec - pre_col.tv_usec);	
+            total_collect_us += (post_col.tv_usec - pre_col.tv_usec);
 			//
             // invoking defrag with syscall`
             if (loop_count % defrag_freq_factor == 0) {
@@ -198,22 +196,20 @@ void read_stats_periodically(pid_t app_pid) {
                     gettimeofday(&post_def, NULL);
                     // save defrag time
                     total_defrag_us += (post_def.tv_sec - pre_def.tv_sec) * 1000000;
-                    total_defrag_us += (post_def.tv_usec - pre_def.tv_usec);	
+                    total_defrag_us += (post_def.tv_usec - pre_def.tv_usec);
                     printf("Post-defrag collecting...");
 			        // ret = collect_custom_pagemap(app_pid, out_name);
 					sprintf(command, "./pagecollect/cap_pagecollect -p %d -o pagemap_%d_%d_post.out -r -m\n", app_pid, app_pid, file_index);
 					// measure time spot (pre-postcollect post-defrag)
                     gettimeofday(&pre_col, NULL);
-					system(command); printf("Done\n");
-                    if (ret != 0) {
-                        printf("error: %d in system(postcollect)\n", ret); 
-                    }
+					system(command);
+					printf("Done\n");
+                    if (ret != 0) printf("error: %d in system(postcollect)\n", ret);
 					// measure time spot (post-postcollect post-defrag)
                     gettimeofday(&post_col, NULL);
                     // save collect time
                     total_collect_us += (post_col.tv_sec - pre_col.tv_sec) * 1000000;
-                    total_collect_us += (post_col.tv_usec - pre_col.tv_usec);	
-                
+                    total_collect_us += (post_col.tv_usec - pre_col.tv_usec);
 				}
 			}
             file_index++;
@@ -329,7 +325,7 @@ int main(int argc, char** argv)
 		{"child_stdin", required_argument, 0, OPT_CHILD_STDIN},
 		{"child_stdout", required_argument, 0, OPT_CHILD_STDOUT},
 		// {"sleep_ms_defrag", required_argument, 0, 'S'},
-		{"relocate_agent_mem", no_argument, &relocate_agent_mem, 1},
+		// {"relocate_agent_mem", no_argument, &relocate_agent_mem, 1},
 		{0,0,0,0}
 	};
 	struct sigaction child_exit_act = {0}, dumpstats_act = {0};
@@ -502,9 +498,9 @@ int main(int argc, char** argv)
 			dup2(child_stdout_fd, 1);
 			close(child_stdout_fd);
 		}
-        
+
         // enable mem_defrag for this process
-		if (mem_defrag || mem_defrag_with_syscall)
+		if (mem_defrag)
 			scan_process_memory(0, NULL, 0, 1);
         // enable CAP for this process
 		if (capaging) {
@@ -524,10 +520,10 @@ int main(int argc, char** argv)
 	fprintf(stderr, "child pid: %d\n", child);
 	fprintf(stdout, "child pid: %d\n", child);
 
-	if (relocate_agent_mem) {
-		numa_bitmask_setbit(parent_mask, 0);
-		numa_set_membind(parent_mask);
-	}
+	// if (relocate_agent_mem) {
+	// 	numa_bitmask_setbit(parent_mask, 0);
+	// 	numa_set_membind(parent_mask);
+	// }
 
 	if (node_mask)
 		numa_bitmask_free(node_mask);
