@@ -19,7 +19,7 @@ echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 
 sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
-sysctl vm.cap_aligned_offset=1
+sysctl vm.cap_aligned_offset=0
 sysctl vm.defrag_show_only_subchunk_stats=1
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
@@ -53,7 +53,7 @@ PROJECT_LOC=$(pwd)
 if [[ "x${USE_DEFRAG}" == "xno" ]]; then
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
     BENCH="${BENCH}_nodef"
-else if [[ "${USE_DEFRAG}" == "xsyscall" ]]; then
+elif [[ "${USE_DEFRAG}" == "xsyscall" ]]; then
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 else
@@ -142,6 +142,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     # calc counters of CAP, defrag for more complete stats
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
     # move pagemap files and counters
+    mv defrag_online_stats_* ${CUR_PWD}/${RES_FOLDER}/
     mv counters* ${CUR_PWD}/${RES_FOLDER}/
     dmesg > ${CUR_PWD}/${RES_FOLDER}/dmesg.out
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps

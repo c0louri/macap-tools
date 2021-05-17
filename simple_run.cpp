@@ -500,7 +500,7 @@ int main(int argc, char** argv)
 		}
 
         // enable mem_defrag for this process
-		if (mem_defrag)
+		if (mem_defrag || mem_defrag_with_syscall)
 			scan_process_memory(0, NULL, 0, 1);
         // enable CAP for this process
 		if (capaging) {
