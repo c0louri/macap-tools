@@ -79,6 +79,8 @@ for line in lines:
 			# update stats_per_defrag
 			stats_per_defrag[i] += stats[i]
 
+print(stats_type_enum)
+
 for iter, val in defrags.items():
 	print("Defrag iter {}:".format(iter))
 	pretty_print_defrag_iter(val[0], val[1])
