@@ -116,8 +116,8 @@ def read_counters_stats(filename):
 	lines = f_counters.readlines()
 	def_succ = int(lines[0].split()[5])
 	def_fails = int(lines[1].split()[5])
-	cap_2m_fails = int(lines[2].split()[3])
-	cap_4k_fails = int(lines[3].split()[3])
+	cap_2m_fails = int(lines[3].split()[3])
+	cap_4k_fails = int(lines[2].split()[3])
 	return [cap_4k_fails, cap_2m_fails, def_succ, def_fails]
 
 def get_table(d, bench, defrag, frag):
@@ -176,5 +176,15 @@ else:
 	path = "."
 
 runs_dict = read_all_stats(path)
-tables = print_all_tables(runs_dict, True)
+print(benchmarks)
+print(defrag_opts)
+print(frag_opts)
 
+if len(sys.argv) > 2:
+    bench = sys.argv[2]
+    defrag = sys.argv[3]
+    frag = sys.argv[4]
+    table = get_table(runs_dict, bench, defrag, frag)
+    print_table(table)
+else:
+    tables = print_all_tables(runs_dict, True)

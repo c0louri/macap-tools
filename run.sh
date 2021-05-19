@@ -94,7 +94,7 @@ GLOBAL_RES_FOLDER=results
 export NTHREADS=${CPUS}
 CUR_PWD=`pwd`
 
-cat /proc/vmstat | grep defrag > vmstat_init.out
+#cat /proc/vmstat | grep defrag > vmstat_init.out
 
 for FAILS in $FAILED_ALLOCS_AFTER; do
     sysctl vm.cap_2mb_alloc_fails=$FAILS
@@ -141,6 +141,8 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
     # calc counters of CAP, defrag for more complete stats
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
+    python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
+    mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
     # move pagemap files and counters
     mv defrag_online_stats_* ${CUR_PWD}/${RES_FOLDER}/
     mv counters* ${CUR_PWD}/${RES_FOLDER}/
