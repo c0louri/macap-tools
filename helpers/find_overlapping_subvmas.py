@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import sys
+import copy
 
 def are_overlapping(svma1, svma2):
 	# pfn ranges = (L1, R1)
@@ -48,95 +49,59 @@ while i < len(lines):
 
 # parse and save in a better format vma/subvmas
 # clean duplicate subvmas or never-used subvmas
-final_svmas = []
+svmas_per_vmas = {}
 for pre_vma in pre_vmas:
-	#print(pre_vma)
+	vma_start, vma_end = hex(int(pre_vma[0][0], 16)>>12), hex(int(pre_vma[0][1],16)>>12)
 	if len(pre_vma[2]) == 0:
 		# vma has no svmas
+		svmas_per_vmas[(vma_start, vma_end)] = []
 		continue
-	# print(pre_vma)
-	vma_start, vma_end = int(pre_vma[0][0], 16), int(pre_vma[0][1], 16)
 	svmas = []
 	for a_l in pre_vma[2]:
 		parts = [part.strip('\s') for part in a_l.split()]
-		svma_vaddr , svma_pfn, offset = int(parts[1], 16), int(parts[3], 16), int(parts[5])
-		if offset != (svma_vaddr>>12) - svma_pfn:
-			print("something wrong with subVMAs -0")
-			exit()
-		svmas.append((svma_vaddr, svma_pfn, offset))
+		svma_vpn, svma_pfn, offset = hex(int(parts[1], 16) >> 12), parts[3], int(parts[5])
+		svmas.append((svma_vpn, svma_pfn, offset))
 	# sorting subVMAs by their start vaddr
-	svmas = sorted(svmas, key=lambda x:x[0])
+	svmas_per_vmas[(vma_start, vma_end)] = sorted(svmas, key=lambda x:int(x[0],16))
 
-	# # here subVMAs which would never be used from vma should be deleted
-	#if len(svmas) > 1:
-	new_start_pos = 0
-	new_end_pos = len(svmas) - 1
-	## remove subvmas with vaddr < vm_start
+all_ranges = []
+pfn_ranges = []
+for bounds, svmas in svmas_per_vmas.items():
+	if len(svmas) == 0:
+		#no subvma in this vma
+		all_ranges.append(bounds)
+	vma_start = bounds[0]
+	vma_end = bounds[1]
 	i = 0
 	while i < len(svmas):
-		# print(svmas[i])
-		if svmas[i][0] <= vma_start:
-			new_start_pos = i
+		vma = svmas[i]
+		offset = vma[2]
+		if (i == 0) or (int(vma[0],16) < int(vma_start, 16)):
+			range_start = vma_start
 		else:
-			break
-		i += 1
-	## remove subvmas with vaddr >= vm_end which will never be used
-	# reverse parsing of svmas list
-	i = len(svmas) - 1
-	while i > 0:
-		if svmas[i][0] < vma_end:
-			new_end_pos = i
-			break
-		i -= 1
-	svmas = svmas[new_start_pos : new_end_pos+1]
-	# remaining subvmas are potentially populated
-	## create active vpn-pfn ranges for each subvma
-	# check onlyy first subvmas (special case)
-	if len(svmas) == 1:
-		vpn_range = (vma_start >> 12, vma_end >> 12)
-	else:
-		# print(svmas)
-		vpn_range = (vma_start >> 12, svmas[1][0] >> 12)
-	offset = svmas[0][2]
-	pfn_range = (vpn_range[0] - offset, vpn_range[1] - offset)
-	# save info of first svma
-	final_svmas.append((pfn_range, vpn_range))
-	# check the rest of svmas
-	i = 1
-	while i < len(svmas):
-		svma = svmas[i]
-		if svma[0] > vma_end:
-			print("this subvma should have been deleted")
-			exit()
-		vpn_range_start = svma[0] >> 12
-		if i == len(svmas)-1:
-			# it is the last subvma
-			vpn_range_end = vma_end >> 12
+			range_start = vma[0]
+		if i == len(svmas)- 1: #its the last subvma
+			range_end = vma_end
 		else:
-			vpn_range_end = svmas[i+1][0] >> 12
-		vpn_range = (vpn_range_start, vpn_range_end)
-		pfn_range = (vpn_range[0] - offset, vpn_range[1] - offset)
-		# save svma and pfn range in final lists
-		final_svmas.append((pfn_range, vpn_range))
+			if int(svmas[i+1][0], 16) > int(vma_end,16):
+				range_end = vma_end
+			else:
+				range_end = svmas[i+1][0]
+		# check if it is a valid range
+		range = (range_start, range_end)
+		size = int(range[1],16) - int(range[0], 16)
+		if size > 0:
+			pfn_range = (hex(int(range[0], 16) - offset), hex(int(range[1], 16) - offset))
+			row = (range, size, vma[0], pfn_range)
+			all_ranges.append(row)
+			pfn_ranges.append((pfn_range, range, size, vma[0], vma[1]))
 		i += 1
 
-# sort final svmas by their pfn start address
-svmas = sorted(final_svmas, key=lambda x : x[0][0])
+# print(pfn_ranges)
 
-i = 0
-while i < len(svmas):
-	svma1 = svmas[i]
-	j = i + 1
-	while j < len(svmas):
-		svma2 = svmas[j]
-		overlapping_range = are_overlapping(svma1, svma2)
-		if overlapping_range is not None:
-			length = overlapping_range[1] - overlapping_range[0] # length in page frames (4k pages)
-			length_mb = (length * 4) / 1024
-			print("Found overlapping ranges, length={}({}MB) !".format(length, length_mb))
-			print("Svma ranges: ({:x}, {:x}), ({:x}, {:x})".format(
-				  svma1[1][0]<<12, svma1[1][1]<<12, svma2[1][0]<<12, svma2[1][1]<<12))
-			print("Overlapping range: ({:x}, {:x})".format(
-				  overlapping_range[0], overlapping_range[1]))
-		j += 1
-	i += 1
+pfn_ranges = sorted(pfn_ranges, key=lambda x:int(x[0][0],16))
+for row in pfn_ranges:
+	print("{}-{} : {}, {}, {}, {}".format(row[0][0], row[0][1], row[1], row[2], row[3], row[4]))
+
+
+
