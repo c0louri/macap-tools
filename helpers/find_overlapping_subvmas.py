@@ -3,10 +3,10 @@
 import sys
 import copy
 
-def are_overlapping(svma1, svma2):
+def are_overlapping(range1, range2):
 	# pfn ranges = (L1, R1)
-	l1, r1 = svma1[0]
-	l2, r2 = svma2[0]
+	l1, r1 = range1
+	l2, r2 = range2
 	if max(l1, l2) < min(r1, r2):
 		# ranges overlapping
 
@@ -103,5 +103,26 @@ pfn_ranges = sorted(pfn_ranges, key=lambda x:int(x[0][0],16))
 for row in pfn_ranges:
 	print("{}-{} : {}, {}, {}, {}".format(row[0][0], row[0][1], row[1], row[2], row[3], row[4]))
 
+total_overlapping_size = 0
 
-
+i = 0
+while i < len(pfn_ranges) - 1:
+	pfn_range = pfn_ranges[i][0]
+	pfn_st, pfn_end = int(pfn_range[0], 16), int(pfn_range[1], 16)
+	j = i+1
+	while j < len(pfn_ranges):
+		curr_pfn_range = pfn_ranges[j][0]
+		curr_pfn_st, curr_pfn_end = int(curr_pfn_range[0], 16), int(curr_pfn_range[1], 16)
+		overlapping_range = are_overlapping((pfn_st, pfn_end), (curr_pfn_st, curr_pfn_end))
+		if overlapping_range is None:
+			j += 1
+			continue
+		else:
+			# print overlapping range
+			overlapping_size = overlapping_range[1] - overlapping_range[0]
+			total_overlapping_size += overlapping_size
+			print("Overlapping range: {:x}-{:x} (size={}) of ranges: {}, {}".format(overlapping_range[0], overlapping_range[1],
+					overlapping_size, pfn_range, curr_pfn_range))
+		j += 1
+	i += 1
+print("Total overlapping : {}MB".format(total_overlapping_size*4/1024))
