@@ -48,7 +48,7 @@ def parse_stats_line(line):
 def pretty_print_defrag_iter(total, vmas_stats):
 	print(total)
 	for bounds, stats in vmas_stats.items():
-		print('0x{} - 0x{} : {}'.format(bounds[0], bounds[1], stats))
+		print('{}-{} : {}'.format(bounds[0], bounds[1], stats))
 
 filename = sys.argv[1] # filename of defrag results
 
