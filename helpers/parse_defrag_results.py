@@ -45,10 +45,16 @@ def parse_stats_line(line):
 	offset, vma = int(values[-2]), values[-1]
 	return (chunk_start, chunk_end), stats_vals, (offset, vma)
 
+def pretty_print_stats(stats):
+	for index, val in enumerate(stats):
+		print('\t{}: {}'.format(stats_type_enum[index], val))
+
 def pretty_print_defrag_iter(total, vmas_stats):
-	print(total)
+	print("Total defrag stats (#iter={}):".format(len(vmas_stats)))
+	pretty_print_stats(total)
 	for bounds, stats in vmas_stats.items():
-		print('{}-{} : {}'.format(bounds[0], bounds[1], stats))
+		print('{}-{}:'.format(bounds[0], bounds[1]))
+		pretty_print_stats(stats)
 
 filename = sys.argv[1] # filename of defrag results
 
