@@ -5,7 +5,7 @@ import re
 import copy
 
 regex =	"\[0x([\da-f]+), 0x([\da-f]+)\):(\d+) \[alig:(\d+), migrated:(\d+), src: not:(\d+), src_thp_dst_not:(\d+), src_pte_thp:(\d+) \
-dst: out_bound:(\d+), dst_thp_src_not:(\d+), dst_pte_thp:(\d+), isolate_free:(\d+), migrate_free:(\d+), \
+dst: out_bound:(\d+), dst_thp_src_not:(\d+), dst_pte_thp:(\d+), isolate_free:(\d+), (\d+),(\d+),(\d+),(\d+), migrate_free:(\d+), \
 anon:(\d+), file:(\d+), non\-lru:(\d+), non\-moveable:(\d+)\], offset: ([\-+]?\d+), vma: 0x([\da-f]+)"
 
 stats_type_enum = {
@@ -18,11 +18,15 @@ stats_type_enum = {
 	6 : "dst_thp_src_not_failed",
 	7 : "dst_pte_thp_failed",
 	8 : "dst_isolate_free_failed",
-	9 : "dst_migrate_free_failed",
-	10 : "dst_anon_failed",
-	11 : "dst_file_failed",
-	12 : "dst_non-lru_failed",
-	13 : "dst_non-moveable_failed"
+	9 : "dst_isolate_free_failed_split",
+	10 : "dst_isolate_free_failed_hzero",
+	11 : "dst_isolate_free_failed_enomem",
+	12 : "dst_isolate_free_failed_einval",
+	13 : "dst_migrate_free_failed",
+	14 : "dst_anon_failed",
+	15 : "dst_file_failed",
+	16 : "dst_non-lru_failed",
+	17 : "dst_non-moveable_failed"
 }
 
 total_stats = [0 for _ in stats_type_enum.keys()]
@@ -50,11 +54,12 @@ def pretty_print_stats(stats):
 		print('\t{}: {}'.format(stats_type_enum[index], val))
 
 def pretty_print_defrag_iter(total, vmas_stats):
-	print("Total defrag stats (#iter={}):".format(len(vmas_stats)))
+	print("Total defrag stats:")
 	pretty_print_stats(total)
 	for bounds, stats in vmas_stats.items():
-		print('{}-{}:'.format(bounds[0], bounds[1]))
-		pretty_print_stats(stats)
+		print('{}-{}: {}'.format(bounds[0], bounds[1], stats))
+		#print('{}-{}:'.format(bounds[0], bounds[1]))
+		#pretty_print_stats(stats)
 
 filename = sys.argv[1] # filename of defrag results
 
@@ -85,11 +90,17 @@ for line in lines:
 			# update stats_per_defrag
 			stats_per_defrag[i] += stats[i]
 
-print(stats_type_enum)
+#print(stats_type_enum)
 
-for iter, val in defrags.items():
-	print("Defrag iter {}:".format(iter))
-	pretty_print_defrag_iter(val[0], val[1])
+if len(sys.argv) == 3:
+	iter_to_show = int(sys.argv[2])
+	stats = defrags[iter_to_show]
+	print("Defrag iter {}".format(iter_to_show))
+	pretty_print_defrag_iter(stats[0], stats[1])
+else:
+	for iter, val in defrags.items():
+		print("Defrag iter {}:".format(iter))
+		pretty_print_defrag_iter(val[0], val[1])
 
 
 
