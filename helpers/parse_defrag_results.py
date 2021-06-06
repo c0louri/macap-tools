@@ -6,7 +6,7 @@ import copy
 
 regex =	"\[0x([\da-f]+), 0x([\da-f]+)\):(\d+) \[alig:(\d+), migrated:(\d+), src: not:(\d+), src_thp_dst_not:(\d+), src_pte_thp:(\d+) \
 dst: out_bound:(\d+), dst_thp_src_not:(\d+), dst_pte_thp:(\d+), isolate_free:(\d+), (\d+),(\d+),(\d+),(\d+), migrate_free:(\d+), \
-anon:(\d+), file:(\d+), non\-lru:(\d+), non\-moveable:(\d+)\], offset: ([\-+]?\d+), vma: 0x([\da-f]+)"
+anon:(\d+) \((\d+)\), file:(\d+), non\-lru:(\d+), non\-moveable:(\d+)\], offset: ([\-+]?\d+), vma: 0x([\da-f]+)"
 
 stats_type_enum = {
 	0 : "aligned",
@@ -24,9 +24,10 @@ stats_type_enum = {
 	12 : "dst_isolate_free_failed_einval",
 	13 : "dst_migrate_free_failed",
 	14 : "dst_anon_failed",
-	15 : "dst_file_failed",
-	16 : "dst_non-lru_failed",
-	17 : "dst_non-moveable_failed"
+	15 : "dst_anon_failed_busy",
+	16 : "dst_file_failed",
+	17 : "dst_non-lru_failed",
+	18 : "dst_non-moveable_failed"
 }
 
 total_stats = [0 for _ in stats_type_enum.keys()]
@@ -45,7 +46,7 @@ def parse_vma_line(line, hex_to_int=False):
 def parse_stats_line(line):
 	values = re.findall(regex, line)[0]
 	chunk_start, chunk_end, size = values[0:3]
-	stats_vals = [int(val) for val in values[3:17]]
+	stats_vals = [int(val) for val in values[3:22]]
 	offset, vma = int(values[-2]), values[-1]
 	return (chunk_start, chunk_end), stats_vals, (offset, vma)
 
