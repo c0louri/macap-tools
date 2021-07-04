@@ -288,8 +288,8 @@ retry:
 	//printf("pausing\n");
 	//pause();
 	//sigwaitinfo(&set, NULL);
- 	//kill(getppid(), SIGUSR2);
-	//printf("Sending user to %d\n",getppid());
+ 	kill(getppid(), SIGUSR2);
+	printf("Sending sigusr2 to %d\n",getppid());
 	pause();
 
 	if (compaction) {
