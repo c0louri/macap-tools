@@ -33,9 +33,10 @@ ITER=$6
 
 #BENCH=liblinear
 #BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-BENCH=XSBench
-BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
-
+#BENCH=XSBench
+#BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
+BENCH=micro
+BENCH_RUN="/home/user/ppac-tools/micro 30G"
 FRAG_SIZE="155G"
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then

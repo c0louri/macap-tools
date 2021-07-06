@@ -1,7 +1,7 @@
 CC=gcc
 CPP=g++
 .PHONY: pagecollect
-all: pagecollect simple_run capaging memfrag
+all: pagecollect simple_run capaging memfrag micro
 
 pagecollect:
 	cd pagecollect && $(MAKE)
@@ -15,6 +15,9 @@ capaging: capaging.c
 memfrag: memfrag.c
 	$(CC) -o $@ $^
 
+micro: benchmarks/micro/microbench.c
+	$(CC) -o $@ $^
+
 clean:
-	-rm simple_run capaging memfrag
+	-rm simple_run capaging memfrag micro
 	cd pagecollect && $(MAKE) clean
