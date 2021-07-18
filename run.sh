@@ -18,9 +18,9 @@ echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
 sysctl vm.cap_aligned_offset=0
-#sysctl vm.defrag_log_only_fails=0
+sysctl vm.defrag_log_only_fails=1
 sysctl vm.defrag_split_thp=1
-sysctl vm.defrag_range_ignoring=1
+sysctl vm.defrag_range_ignoring=0
 sysctl vm.defrag_show_only_subchunk_stats=1
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
@@ -37,7 +37,7 @@ ITER=$6
 #BENCH=XSBench
 #BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
 BENCH=micro
-BENCH_RUN="/home/user/ppac-tools/micro 30G"
+BENCH_RUN="/home/user/ppac-tools/micro 100G"
 FRAG_SIZE="155G"
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
@@ -171,6 +171,11 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
     mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
+    # create separate defrag iter logs
+    mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
+    cd ${CUR_PWD}/${RES_FOLDER}/d_iters
+    python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
+    cd ${CUR_PWD}
     chown -R user ${CUR_PWD}/
     echo "benchmark ended"
 done

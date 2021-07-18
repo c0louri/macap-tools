@@ -46,6 +46,27 @@ other_tokens = [
 ]
 
 stats_defrag = {
+    "pte-mapped src" : 0,
+    "not-managed" : 0,
+    "out-of-bounds" : 0,
+    "free_fail-split" : 0,
+    "free_trans" : 0,
+    "free_nobuddy" : 0,
+    "free_zero-hp" : 0,
+    "free_other" : 0,
+    "free_migrate" : 0,
+    # all cases below are accompanied by dest page info
+    "pte-mapped dst" : 0,
+    "exch_can_migrate" : 0,
+    "exch_split": 0, # except this
+    "exch_busy" : 0,
+    "exch_anon": 0,
+    "exch_file" : 0,
+    "exch_nonlru" : 0,
+    "exch_unmovable" : 0
+}
+
+stats_page_defrag = {
     "occupied/other" : 0,
     "slab" : 0,
     "buddy" : 0,
@@ -56,24 +77,14 @@ stats_defrag = {
     "ca_res" : 0
 }
 
-unmapped_page_types = {
-    0: "buddy",
-    1: "balloon",
-    2: "kmemcg",
-    3: "table",
-    4: "ca_pcp",
-    5: "ca_res",
-}
-
-def page_type_neg_mapcount(values):
-    ptype = ""
-    for i, t in enumerate(values):
-        if t == "1":
-            if len(ptype) > 0:
-                ptype += "|" + unmapped_page_types[i]
-            else:
-                ptype = unmapped_page_types[i]
-    return ptype
+# unmapped_page_types = {
+#     0: "buddy",
+#     1: "balloon",
+#     2: "kmemcg",
+#     3: "table",
+#     4: "ca_pcp",
+#     5: "ca_res",
+# }
 
 def parse_f_line(line):
     tokens = line.split("::")[1].strip().split(',')
@@ -139,6 +150,8 @@ for line in lines:
 for it, v in defrags.items():
     fails = v[0]
     page_info = v[1]
+    total_stats = copy.deepcopy(stats_defrag)
+    total_page_f_stats = copy.deepcopy(stats_page_defrag)
     with open("def_iter_{}.txt".format(it), 'w') as f_w:
         for row in fails:
             dest_pfn = row[2]
@@ -146,9 +159,18 @@ for it, v in defrags.items():
                 page_type = page_info[dest_pfn]
             else:
                 page_type = ""
-            f_w.write("{}, scan_pfn: {}, size: {}, dest_pfn: {}, {}, {}".\
+            f_w.write("{}, scan_pfn: {}, size: {}, dest_pfn: {}, {}, {}\n".\
                       format(row[0], row[1], row[3], row[2], page_type, row[4]))
-
+            fail_type = row[4]
+            # update total fail stats
+            total_stats[fail_type] += int(row[3])
+            # update page type fails
+            if page_type == "":
+                total_page_f_stats["occupied/other"] += size
+            else:
+                for pt in page_type.split('|'):
+                    total_page_f_stats[pt] += size
+        f_w.write("\nTotal stats:\n {}\n {}\n".format(total_stats, total_page_f_stats))
 
 
     # calculate some total stats (cumulative)
