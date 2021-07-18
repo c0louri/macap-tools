@@ -68,6 +68,7 @@ stats_defrag = {
 
 stats_page_defrag = {
     "occupied/other" : 0,
+    "reserved" : 0,
     "slab" : 0,
     "buddy" : 0,
     "balloon" : 0,
@@ -144,7 +145,10 @@ for line in lines:
             if len(page_type) > 0:
                 page_type = page_type[:-1] # remove last '|'
         else:
-            page_type = ""
+            if "reserved" in line:
+                page_type = "reserved"
+            else:
+                page_type = ""
         page_info[pfn] = page_type
 
 for it, v in defrags.items():
@@ -163,13 +167,13 @@ for it, v in defrags.items():
                       format(row[0], row[1], row[3], row[2], page_type, row[4]))
             fail_type = row[4]
             # update total fail stats
-            total_stats[fail_type] += int(row[3])
+            total_stats[fail_type] += row[3]
             # update page type fails
             if page_type == "":
-                total_page_f_stats["occupied/other"] += size
+                total_page_f_stats["occupied/other"] += row[3]
             else:
                 for pt in page_type.split('|'):
-                    total_page_f_stats[pt] += size
+                    total_page_f_stats[pt] += row[3]
         f_w.write("\nTotal stats:\n {}\n {}\n".format(total_stats, total_page_f_stats))
 
 
