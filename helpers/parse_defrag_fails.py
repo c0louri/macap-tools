@@ -26,6 +26,7 @@ fail_tokens = [
     "free_trans",
     "free_nobuddy",
     "free_zero-hp",
+    "free_nosplit",
     "free_other",
     "free_migrate",
     # all cases below are accompanied by dest page info
@@ -53,6 +54,7 @@ stats_defrag = {
     "free_trans" : 0,
     "free_nobuddy" : 0,
     "free_zero-hp" : 0,
+    "free_nosplit" : 0,
     "free_other" : 0,
     "free_migrate" : 0,
     # all cases below are accompanied by dest page info

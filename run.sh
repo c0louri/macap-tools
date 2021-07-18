@@ -31,14 +31,19 @@ USE_MEMFRAG=$3
 USE_DEFRAG=$4
 MARKED_DEFRAG=$5
 ITER=$6
+FRAG_SIZE="155G"
 
 #BENCH=liblinear
 #BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
+#PERC_LEFT_ALLOC="60"
+
 #BENCH=XSBench
 #BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
+#PERC_LEFT_ALLOC="15"
+
 BENCH=micro
 BENCH_RUN="/home/user/ppac-tools/micro 100G"
-FRAG_SIZE="155G"
+PERC_LEFT_ALLOC="25"
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
     STATS_PERIOD=5
@@ -113,7 +118,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     dmesg -c > /dev/null
     cat /proc/capaging_contiguity_map > cmap_init.out
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
-        ./memfrag ${FRAG_SIZE} 0 10 &
+        ./memfrag ${FRAG_SIZE} 0 ${PERC_LEFT_ALLOC} &
         FRAG_PID=$!
         #sleep 140
         while $FRAG_UNFIN; do : ; done
