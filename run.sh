@@ -19,6 +19,7 @@ sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
 sysctl vm.cap_aligned_offset=0
 #sysctl vm.defrag_log_only_fails=0
+sysctl vm.defrag_split_thp=1
 sysctl vm.defrag_range_ignoring=1
 sysctl vm.defrag_show_only_subchunk_stats=1
 
