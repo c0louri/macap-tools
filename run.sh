@@ -21,7 +21,7 @@ sysctl vm.cap_aligned_offset=0
 sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
 sysctl vm.defrag_split_thp=1
 sysctl vm.defrag_range_ignoring=0
-# sysctl vm.cap_eager_placement=1
+sysctl vm.cap_eager_placement=1
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
@@ -188,9 +188,8 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     DEF_BUF_LEVEL=$(cat /proc/sys/vm/defrag_buf_log_level)
     if [[ "x${DEF_BUF_LEVEL}" == "x3" ]]; then # log : fails and pages
         mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
-        cd ${CUR_PWD}/${RES_FOLDER}/d_iters
-        python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
-        cd ${CUR_PWD}
+        python3 helpers/parse_defrag_fails.py defrag_online_stats_0
+        mv def_iter_* d_iters/
     elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]]; then # compact stats
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
         mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
