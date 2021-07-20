@@ -39,11 +39,9 @@ FRAG_SIZE="150G"
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
     PERC="60"
-fi
 elif [[ "x${BENCH}" == "XSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
     PERC="15"
-fi
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 100G"
     PERC="30"
