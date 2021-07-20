@@ -190,7 +190,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
         cd ${CUR_PWD}/${RES_FOLDER}/d_iters
         python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
         cd ${CUR_PWD}
-    elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]] then # compact stats
+    elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]]; then # compact stats
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
         mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
     fi
