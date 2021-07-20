@@ -4,6 +4,7 @@ import sys
 import os
 #import matplotlib
 import copy
+import pandas as pd
 
 # benchmarks = ["liblinear", "XSBench", "micro"]
 # defrag_opts = ["nodef", "mark", "all"]
@@ -17,7 +18,7 @@ alloc_fails = []
 
 col_names = ["ingored_alloc_fails", "#vmas", "#subvmas", "4k cap fails",
 			 "2M cap fails", "Ranger successes","Ranger failures", "#32 ranges coverage",
-			 "#64 ranges coverage", "#128 ranges coverage", "#ranges for 99% cov"]
+			 "#64", "#128", "#ranges for 99% cov"]
 
 runs_dict = {}
 
@@ -155,6 +156,10 @@ def print_table(table):
 		for val in row[:-1]:
 			print(val, end=', ')
 		print(row[-1])
+	df = pd.DataFrame(table, columns=col_names)
+	df.set_index(col_names[0])
+	print(df)
+
 
 def print_all_tables(runs_dict, to_print=False):
 	tables = []
