@@ -21,6 +21,7 @@ sysctl vm.cap_aligned_offset=0
 sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
 sysctl vm.defrag_split_thp=1
 sysctl vm.defrag_range_ignoring=0
+# sysctl vm.cap_eager_placement=1
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
@@ -31,8 +32,8 @@ USE_MEMFRAG=$4
 USE_DEFRAG=$5
 MARKED_DEFRAG=$6
 ITER=$7
-PERC_KEEP=$8
-SUB_HP_K=$9
+SUB_HP_K=$8
+PERC_KEEP=$9
 FRAG_SIZE="150G"
 
 
