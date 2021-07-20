@@ -185,14 +185,12 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
 
     DEF_BUF_LEVEL=$(cat /proc/sys/vm/defrag_buf_log_level)
-    if [[ "x${DEF_BUF_LEVEL}" == "x3" ]]; then
-        # log : fails and pages
+    if [[ "x${DEF_BUF_LEVEL}" == "x3" ]]; then # log : fails and pages
         mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
         cd ${CUR_PWD}/${RES_FOLDER}/d_iters
         python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
         cd ${CUR_PWD}
-    elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]] then
-        # compact stats
+    elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]] then # compact stats
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
         mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
     fi
