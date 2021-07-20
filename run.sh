@@ -36,26 +36,26 @@ SUB_HP_K=$9
 FRAG_SIZE="150G"
 
 
-if [["x${BENCH}" == "xliblinear"]]; then
+if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
     PERC="60"
 fi
-elif [["x${BENCH}" == "XSBench"]]; then
+elif [[ "x${BENCH}" == "XSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
     PERC="15"
 fi
-elif [["x${BENCH}" == "xmicro"]]; then
+elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 100G"
     PERC="30"
 fi
 
-if [["x${PERC_KEEP}" == "x"]]; then
+if [[ "x${PERC_KEEP}" == "x" ]]; then
     PERC_LEFT_ALLOC=$PERC
 else
     PERC_LEFT_ALLOC=$PERC_KEEP
 fi
 
-if [["x${SUB_HP_K}" == "x"]]; then
+if [[ "x${SUB_HP_K}" == "x" ]]; then
     SUB_HP_KEEP="0"
 else
     SUB_HP_KEEP=$SUB_HP_K
@@ -187,13 +187,13 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
 
     DEF_BUF_LEVEL=$(cat /proc/sys/vm/defrag_buf_log_level)
-    if [["x${DEF_BUF_LEVEL}" == "x3"]]; then
+    if [[ "x${DEF_BUF_LEVEL}" == "x3" ]]; then
         # log : fails and pages
         mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
         cd ${CUR_PWD}/${RES_FOLDER}/d_iters
         python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
         cd ${CUR_PWD}
-    elif [["x${DEF_BUF_LEVEL}" == "x2"]] then
+    elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]] then
         # compact stats
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
         mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
