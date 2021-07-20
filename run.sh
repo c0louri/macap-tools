@@ -18,32 +18,48 @@ echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 sysctl vm.defrag_ignore_drain=0
 sysctl vm.cap_direct_pcp_alloc=0
 sysctl vm.cap_aligned_offset=0
-sysctl vm.defrag_log_only_fails=1
+sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
 sysctl vm.defrag_split_thp=1
 sysctl vm.defrag_range_ignoring=0
-sysctl vm.defrag_show_only_subchunk_stats=1
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
-export CPUS=$1
-FAILED_ALLOCS_AFTER=$2
-USE_MEMFRAG=$3
-USE_DEFRAG=$4
-MARKED_DEFRAG=$5
-ITER=$6
-FRAG_SIZE="155G"
+BENCH=$1
+export CPUS=$2
+FAILED_ALLOCS_AFTER=$3
+USE_MEMFRAG=$4
+USE_DEFRAG=$5
+MARKED_DEFRAG=$6
+ITER=$7
+PERC_KEEP=$8
+SUB_HP_K=$9
+FRAG_SIZE="150G"
 
-#BENCH=liblinear
-#BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-#PERC_LEFT_ALLOC="60"
 
-#BENCH=XSBench
-#BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
-#PERC_LEFT_ALLOC="15"
+if [["x${BENCH}" == "xliblinear"]]; then
+    BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
+    PERC="60"
+fi
+elif [["x${BENCH}" == "XSBench"]]; then
+    BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
+    PERC="15"
+fi
+elif [["x${BENCH}" == "xmicro"]]; then
+    BENCH_RUN="/home/user/ppac-tools/micro 100G"
+    PERC="30"
+fi
 
-BENCH=micro
-BENCH_RUN="/home/user/ppac-tools/micro 100G"
-PERC_LEFT_ALLOC="25"
+if [["x${PERC_KEEP}" == "x"]]; then
+    PERC_LEFT_ALLOC=$PERC
+else
+    PERC_LEFT_ALLOC=$PERC_KEEP
+fi
+
+if [["x${SUB_HP_K}" == "x"]]; then
+    SUB_HP_KEEP="0"
+else
+    SUB_HP_KEEP=$SUB_HP_K
+fi
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
     STATS_PERIOD=5
@@ -92,7 +108,7 @@ fi
 # set CPUMASK for numa config
 FAST_NUMA_NODE=0
 FAST_NUMA_NODE_CPUS=`numactl -H| grep "node ${FAST_NUMA_NODE} cpus" | cut -d" " -f 4-`
-echo $FAST_NUMA_NODE_CPUS
+# echo $FAST_NUMA_NODE_CPUS
 read -a CPUS_ARRAY <<< "${FAST_NUMA_NODE_CPUS}"
 ALL_CPU_MASK=0
 for IDX in $(seq 0 $((CPUS-1)) ); do
@@ -103,7 +119,7 @@ for IDX in $(seq 0 $((CPUS-1)) ); do
 done
 ALL_CPU_MASK=`echo "obase=16; ${ALL_CPU_MASK}" | bc`
 NUMACTL_CMD="${NUMACTL_CMD} -c 0x${ALL_CPU_MASK}"
-echo $NUMACTL_CMD
+# echo $NUMACTL_CMD
 
 GLOBAL_RES_FOLDER=results
 export NTHREADS=${CPUS}
@@ -113,16 +129,16 @@ CUR_PWD=`pwd`
 
 for FAILS in $FAILED_ALLOCS_AFTER; do
     sysctl vm.cap_2mb_alloc_fails=$FAILS
-    echo "begin benchmark ${BENCH} failed_allocs=${FAILS}, memfrag=${USE_MEMFRAG} size=${FRAG_SIZE}"
+    echo "begin benchmark ${BENCH} failed_allocs=${FAILS}, memfrag=${USE_MEMFRAG} size=${FRAG_SIZE}, per_sub_hp=${SUB_HP_KEEP} per_left_alloc=${PERC_LEFT_ALLOC}"
     # start fragmentation tool if it is needed
     dmesg -c > /dev/null
     cat /proc/capaging_contiguity_map > cmap_init.out
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
-        ./memfrag ${FRAG_SIZE} 0 ${PERC_LEFT_ALLOC} &
+        ./memfrag ${FRAG_SIZE} ${SUB_HP_KEEP} ${PERC_LEFT_ALLOC} &
         FRAG_PID=$!
         #sleep 140
         while $FRAG_UNFIN; do : ; done
-        sleep 10
+        sleep 5
     fi
     ## clean previous run's stats/outputs/etc
     rm kdd12.tr.model
@@ -144,6 +160,9 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     else
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_${ITER}"
     fi
+    if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
+        RES_FOLDER="${RES_FOLDER}_${SUB_HP_KEEP}_${PERC_LEFT_ALLOC}"
+    fi
     mkdir $RES_FOLDER
     ${NUMACTL_CMD} -- ${BENCH_RUN} 2> ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cycles.txt
 
@@ -163,24 +182,32 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     echo "Printing stats..."
     # collect stats from pagemap files
     ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
+    cat /proc/capaging_contiguity_map > cmap_end.out
     # calc counters of CAP, defrag for more complete stats
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
-    python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
-    cat /proc/capaging_contiguity_map > cmap_end.out
-    mv cmap* ${CUR_PWD}/${RES_FOLDER}/
-    mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
+
+    DEF_BUF_LEVEL=$(cat /proc/sys/vm/defrag_buf_log_level)
+    if [["x${DEF_BUF_LEVEL}" == "x3"]]; then
+        # log : fails and pages
+        mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
+        cd ${CUR_PWD}/${RES_FOLDER}/d_iters
+        python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
+        cd ${CUR_PWD}
+    elif [["x${DEF_BUF_LEVEL}" == "x2"]] then
+        # compact stats
+        python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
+        mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
+    fi
+
     # move pagemap files and counters
     mv defrag_online_stats_* ${CUR_PWD}/${RES_FOLDER}/
     mv counters* ${CUR_PWD}/${RES_FOLDER}/
     dmesg -s 32768000 > ${CUR_PWD}/${RES_FOLDER}/dmesg.out
+    mv cmap* ${CUR_PWD}/${RES_FOLDER}/
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
     mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
     # create separate defrag iter logs
-    mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
-    cd ${CUR_PWD}/${RES_FOLDER}/d_iters
-    python3 ${CUR_PWD}/helpers/parse_defrag_fails.py ../defrag_online_stats_0
-    cd ${CUR_PWD}
     chown -R user ${CUR_PWD}/
     echo "benchmark ended"
 done

@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 		use_huge = atoi(argv[2]);
 
 
-	printf("allocate %llxGB memory\n", btotal >> 30); // print #GB to allocate
+	printf("allocate %ldGB memory\n", btotal >> 30); // print #GB to allocate
 	// 1st phase: malloc for 10% of total space
 	size_1st = 0.1 * btotal;
     printf("1st phase: allocate %lldMB\n", size_1st >> 20);

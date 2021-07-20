@@ -128,7 +128,7 @@ void read_stats_periodically(pid_t app_pid) {
 	int stats_handle = 0;
 	FILE *defrag_online_output = NULL;
 	long read_ret;
-	const int buf_len = 1024 * 1024 * 16;
+	const int buf_len = 1024 * 1024 * 64;
 	int loop_count = 0;
 	int file_index = 0;
 	char out_name[100];

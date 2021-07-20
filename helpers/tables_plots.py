@@ -5,8 +5,8 @@ import os
 #import matplotlib
 import copy
 
-# benchmarks = ["liblinear", "XSBench"]
-# defrag_opts = ["nodef", "marked", "all"]
+# benchmarks = ["liblinear", "XSBench", "micro"]
+# defrag_opts = ["nodef", "mark", "all"]
 # frag_opts = ["fresh", "frag"]
 # alloc_fails = [0, 1, 2, 4, 10, 20, 40, 128]
 
@@ -57,9 +57,9 @@ def get_bench_run_characteristics(filename):
 			defrag_opts.append("nodef")
 	else:
 		if "mark" in filename:
-			attrs.append("marked")
-			if "marked" not in defrag_opts:
-				defrag_opts.append("marked")
+			attrs.append("mark")
+			if "mark" not in defrag_opts:
+				defrag_opts.append("mark")
 		else:
 			attrs.append("all")
 			if "all" not in defrag_opts:
@@ -84,13 +84,16 @@ def get_bench_run_characteristics(filename):
 
 
 def read_stats(filename):
+	print("reading ",filename)
 	f_stats = open(filename, 'r')
 	lines = f_stats.readlines()
 	i = 0
 	stats_list = []
 	# save stats from every stats collecting iter
-	while i < len(lines):
+	while i < len(lines) - 1:
 		if "PRE_DEFRAG" in lines[i] or "POST_DEFRAG" in lines[i]:
+			if not lines[i+1].startswith('Offsets_stats:'):
+				break # some unfinished stats collecting due to benchmarks exiting
 			offset_stats = lines[i+1].split(':')[1].strip().replace(' ', '').split(',')
 			offset_stats = [int(val) for val in offset_stats]
 			cov_stats = [num(token) for token in lines[i+2].strip().replace(' ', '').split(',')]
@@ -113,7 +116,7 @@ def read_stats(filename):
 
 def read_counters_stats(filename):
 	f_counters = open(filename, 'r')
-	lines = f_counters.readlines()
+	lines = f_counters.readlines();
 	def_succ = int(lines[0].split()[5])
 	def_fails = int(lines[1].split()[5])
 	cap_2m_fails = int(lines[3].split()[3])
@@ -169,7 +172,6 @@ def print_all_tables(runs_dict, to_print=False):
 
 # main part of script
 
-
 if len(sys.argv) > 1:
 	path = sys.argv[1]
 else:
@@ -179,7 +181,7 @@ runs_dict = read_all_stats(path)
 print(benchmarks)
 print(defrag_opts)
 print(frag_opts)
-
+print(col_names)
 if len(sys.argv) > 2:
     bench = sys.argv[2]
     defrag = sys.argv[3]
