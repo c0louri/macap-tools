@@ -86,7 +86,7 @@ elif [[ "x${USE_DEFRAG}" == "xsyscall" ]]; then # using both, defrag is executed
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
     sysctl vm.kthread_defragd_disabled=1
-elif [[ "x{USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscalls
+elif [[ "x${USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscalls
     BENCH="${BENCH}_ranger"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
