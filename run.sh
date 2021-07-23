@@ -22,6 +22,7 @@ sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended
 sysctl vm.defrag_split_thp=1
 sysctl vm.defrag_range_ignoring=0
 sysctl vm.cap_eager_placement=1
+sysctl vm.cap_old = 0
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
@@ -34,18 +35,18 @@ MARKED_DEFRAG=$6
 ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
-FRAG_SIZE="150G"
+FRAG_SIZE="195G"
 
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
     PERC="60"
-elif [[ "x${BENCH}" == "XSBench" ]]; then
+elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
-    PERC="15"
+    PERC="25"
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 100G"
-    PERC="30"
+    PERC="45"
 fi
 
 if [[ "x${PERC_KEEP}" == "x" ]]; then
@@ -78,14 +79,19 @@ fi
 
 PROJECT_LOC=$(pwd)
 
-if [[ "x${USE_DEFRAG}" == "xno" ]]; then
+if [[ "x${USE_DEFRAG}" == "xcap" ]]; then # using only Ca Paging
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
-    BENCH="${BENCH}_nodef"
-elif [[ "x${USE_DEFRAG}" == "xsyscall" ]]; then
+    BENCH="${BENCH}_cap"
+elif [[ "x${USE_DEFRAG}" == "xsyscall" ]]; then # using both, defrag is executed through syscall
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
     sysctl vm.kthread_defragd_disabled=1
-else
+elif [[ "x{USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscalls
+    BENCH="${BENCH}_ranger"
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag_with_syscall"
+    echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    sysctl vm.kthread_defragd_disabled=1
+else # using both, defrag is executed in a kthread
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
     sysctl vm.kthread_defragd_disabled=0
 fi
@@ -189,7 +195,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     if [[ "x${DEF_BUF_LEVEL}" == "x3" ]]; then # log : fails and pages
         mkdir ${CUR_PWD}/${RES_FOLDER}/d_iters
         python3 helpers/parse_defrag_fails.py defrag_online_stats_0
-        mv def_iter_* ${CUR_PWD}/${RES_FOLDER}/d_iter/
+        mv def_iter_* ${CUR_PWD}/${RES_FOLDER}/d_iters/
 
     elif [[ "x${DEF_BUF_LEVEL}" == "x2" ]]; then # compact stats
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
