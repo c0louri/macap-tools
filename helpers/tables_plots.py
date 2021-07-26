@@ -124,8 +124,12 @@ def read_counters_stats(filename):
     lines = f_counters.readlines();
     def_succ = int(lines[0].split()[5])
     def_fails = int(lines[1].split()[5])
+    def_succ_gb = def_succ * 4 / (1024*1024)
+    def_fails_gb = def_fails * 4 / (1024*1024)
     cap_2m_fails = int(lines[3].split()[3])
     cap_4k_fails = int(lines[2].split()[3])
+    def_succ = str(def_succ) + " ({:.2f}GB)".format(def_succ_gb)
+    def_fails = str(def_fails) + " ({:.2f}GB)".format(def_fails_gb)
     return [cap_4k_fails, cap_2m_fails, def_succ, def_fails]
 
 def get_table(d, bench, defrag, frag):

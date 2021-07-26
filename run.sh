@@ -15,14 +15,23 @@ echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
 echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 
-sysctl vm.defrag_ignore_drain=0
+# CaP sysctl config:
 sysctl vm.cap_direct_pcp_alloc=0
 sysctl vm.cap_aligned_offset=0
-sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
-sysctl vm.defrag_split_thp=1
-sysctl vm.defrag_range_ignoring=0
 sysctl vm.cap_eager_placement=1
 sysctl vm.cap_old = 0
+
+# TRanger sysctl config:
+sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
+sysctl vm.defrag_ignore_drain=0
+sysctl vm.defrag_split_thp=1
+sysctl vm.defrag_range_ignoring=0
+sysctl vm.vma_scan_threshold_type=1
+sysctl vm.vma_scan_percentile=100
+sysctl vm.defrag_size_threshold=5
+# sysctl vm.num_breakout_chunks=
+# sysctl vm.vm.vma_no_repeat_defrag=1
+
 
 echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
