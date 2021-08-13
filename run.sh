@@ -17,15 +17,15 @@ echo 999999 >/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
 
 # CaP sysctl config:
 sysctl vm.cap_direct_pcp_alloc=0
-sysctl vm.cap_aligned_offset=0
+# sysctl vm.cap_aligned_offset=0
 sysctl vm.cap_eager_placement=1
-sysctl vm.cap_old = 0
+# sysctl vm.cap_old = 0
 
 # TRanger sysctl config:
-sysctl vm.defrag_buf_log_level=3 # (0->none, 1->def log, 2->compact, 3->extended fails)
+sysctl vm.defrag_buf_log_level=0 # (0->none, 1->def log, 2->compact, 3->extended fails)
 sysctl vm.defrag_ignore_drain=0
-sysctl vm.defrag_split_thp=1
-sysctl vm.defrag_range_ignoring=0
+# sysctl vm.defrag_split_thp=1
+# sysctl vm.defrag_range_ignoring=0
 sysctl vm.vma_scan_threshold_type=1
 sysctl vm.vma_scan_percentile=100
 sysctl vm.defrag_size_threshold=5
@@ -33,7 +33,7 @@ sysctl vm.defrag_size_threshold=5
 # sysctl vm.vm.vma_no_repeat_defrag=1
 
 
-echo 3000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
 BENCH=$1
 export CPUS=$2
@@ -44,18 +44,26 @@ MARKED_DEFRAG=$6
 ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
-FRAG_SIZE="195G"
+DEFRAG_SCAN_INTERVAL=$10
+FRAG_SIZE="220G" # ram 240gb
 
+#
+if [[ "x${DEFRAG_SCAN_INTERVAL}" == "x" ]]; then
+    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+else
+    echo $DEFRAG_SCAN_INTERVAL > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+fi
+#
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-    PERC="60"
+    PERC="80"
 elif [[ "x${BENCH}" == "xXSBench" ]]; then
-    BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 125000"
-    PERC="25"
+    BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
+    PERC="40"
 elif [[ "x${BENCH}" == "xmicro" ]]; then
-    BENCH_RUN="/home/user/ppac-tools/micro 100G"
-    PERC="45"
+    BENCH_RUN="/home/user/ppac-tools/micro 120G"
+    PERC="40"
 fi
 
 if [[ "x${PERC_KEEP}" == "x" ]]; then
@@ -71,9 +79,9 @@ else
 fi
 
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
-    STATS_PERIOD=5
+    STATS_PERIOD=10
     if [[ "x${BENCH}" == "xliblinear" ]]; then
-         STATS_PERIOD=20
+         STATS_PERIOD=30
     fi
     if [[ "x${BENCH}" == "xXSBench" ]]; then
         STATS_PERIOD=10
@@ -91,22 +99,32 @@ PROJECT_LOC=$(pwd)
 if [[ "x${USE_DEFRAG}" == "xcap" ]]; then # using only Ca Paging
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats"
     BENCH="${BENCH}_cap"
-elif [[ "x${USE_DEFRAG}" == "xsyscall" ]]; then # using both, defrag is executed through syscall
+    echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    sysctl vm.kthread_defragd_disabled=1
+elif [[ "x${USE_DEFRAG}" == "xboth_syscall" ]]; then # using both, defrag is executed through syscall
+    BENCH="${BENCH}_both"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
     sysctl vm.kthread_defragd_disabled=1
-elif [[ "x${USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscalls
+elif [[ "x${USE_DEFRAG}" == "xranger_syscall" ]]; then # using only TRanger with syscalls
     BENCH="${BENCH}_ranger"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
     sysctl vm.kthread_defragd_disabled=1
+elif [[ "x${USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscalls
+    BENCH="${BENCH}_ranger"
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag"
+    echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    sysctl vm.kthread_defragd_disabled=0
 else # using both, defrag is executed in a kthread
+    BENCH="${BENCH}_both"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
     sysctl vm.kthread_defragd_disabled=0
 fi
 
 if [[ "x${MARKED_DEFRAG}" == "xno" ]]; then
     sysctl vm.defrag_only_misplaced=0
+    BENCH="${BENCH}_all"
 else
     sysctl vm.defrag_only_misplaced=1
     BENCH="${BENCH}_mark"
@@ -170,12 +188,14 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
 
     BENCH_CONF="${BENCH}_${FAILS}"
     if [[ "x${ITER}" == "x" ]]; then
-        RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}"
+        RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_"
     else
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_${ITER}"
     fi
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
-        RES_FOLDER="${RES_FOLDER}_${SUB_HP_KEEP}_${PERC_LEFT_ALLOC}"
+        RES_FOLDER="${RES_FOLDER}_${SUB_HP_KEEP}-${PERC_LEFT_ALLOC}"
+    else
+        RES_FOLDER="${RES_FOLDER}_0-0"
     fi
     mkdir $RES_FOLDER
     ${NUMACTL_CMD} -- ${BENCH_RUN} 2> ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_cycles.txt
