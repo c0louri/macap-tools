@@ -44,26 +44,21 @@ MARKED_DEFRAG=$6
 ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
-DEFRAG_SCAN_INTERVAL=$10
 FRAG_SIZE="220G" # ram 240gb
 
-#
-if [[ "x${DEFRAG_SCAN_INTERVAL}" == "x" ]]; then
-    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
-else
-    echo $DEFRAG_SCAN_INTERVAL > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
-fi
-#
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
     PERC="80"
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
     PERC="40"
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 120G"
     PERC="40"
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
 if [[ "x${PERC_KEEP}" == "x" ]]; then
