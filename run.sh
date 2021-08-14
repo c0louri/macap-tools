@@ -186,6 +186,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_"
     else
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_${ITER}"
+        mkdir -p ${GLOBAL_RES_FOLDER}/${ITER}
     fi
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
         RES_FOLDER="${RES_FOLDER}_${SUB_HP_KEEP}-${PERC_LEFT_ALLOC}"
@@ -234,6 +235,10 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
     mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
+    #
+    if [[ "x${ITER}" != "x" ]]; then
+        mv ${RES_FOLDER} ${GLOBAL_RES_FOLDER}/${ITER}/
+    fi
     # create separate defrag iter logs
     chown -R user ${CUR_PWD}/
     echo "benchmark ended"
