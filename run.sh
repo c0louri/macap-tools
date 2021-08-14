@@ -54,11 +54,11 @@ if [[ "x${BENCH}" == "xliblinear" ]]; then
 elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
     PERC="40"
-    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 120G"
     PERC="40"
-    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
 if [[ "x${PERC_KEEP}" == "x" ]]; then
