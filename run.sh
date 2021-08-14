@@ -181,7 +181,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     cat /proc/capaging_contiguity_map > cmap_after_frag.out
 
     BENCH_CONF="${BENCH}_${FAILS}"
-    if [[ "x${ITER}" == "x" ]]; then
+    if [[ "x${ITER}" == "x0" ]]; then
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_"
     else
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_${ITER}"
@@ -235,7 +235,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
     mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
     #
-    if [[ "x${ITER}" != "x" ]]; then
+    if [[ "x${ITER}" != "x0" ]]; then
         mv ${RES_FOLDER} ${GLOBAL_RES_FOLDER}/${ITER}/
     fi
     # create separate defrag iter logs
