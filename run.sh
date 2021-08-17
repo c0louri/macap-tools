@@ -33,7 +33,7 @@ sysctl vm.defrag_size_threshold=5
 # sysctl vm.vm.vma_no_repeat_defrag=1
 
 
-echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 
 BENCH=$1
 export CPUS=$2
@@ -44,21 +44,18 @@ MARKED_DEFRAG=$6
 ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
-FRAG_SIZE="220G" # ram 240gb
+FRAG_SIZE="195G" # ram 240gb
 
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-    PERC="80"
-    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 30000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
-    PERC="40"
-    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro 120G"
-    PERC="40"
-    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
 if [[ "x${PERC_KEEP}" == "x" ]]; then
@@ -76,7 +73,7 @@ fi
 if [[ "x${STATS_PERIOD}" == "x" ]]; then
     STATS_PERIOD=10
     if [[ "x${BENCH}" == "xliblinear" ]]; then
-         STATS_PERIOD=30
+         STATS_PERIOD=60
     fi
     if [[ "x${BENCH}" == "xXSBench" ]]; then
         STATS_PERIOD=10
@@ -185,7 +182,7 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_"
     else
         RES_FOLDER="${GLOBAL_RES_FOLDER}/${BENCH_CONF}_${ITER}"
-        mkdir -p ${GLOBAL_RES_FOLDER}/${ITER}
+        #mkdir -p ${GLOBAL_RES_FOLDER}/${ITER}
     fi
     if [[ "x${USE_MEMFRAG}" == "xyes" ]]; then
         RES_FOLDER="${RES_FOLDER}_${SUB_HP_KEEP}-${PERC_LEFT_ALLOC}"
@@ -233,11 +230,16 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     mv cmap* ${CUR_PWD}/${RES_FOLDER}/
     mkdir ${CUR_PWD}/${RES_FOLDER}/pagemaps
     rm ${CUR_PWD}/${RES_FOLDER}/pagemaps/*
-    mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
-    #
-    if [[ "x${ITER}" != "x0" ]]; then
-        mv ${RES_FOLDER} ${GLOBAL_RES_FOLDER}/${ITER}/
+    # in buffer log level 0, no pagemap is saved
+    if [[ "x${DEF_BUF_LEVEL}" != "x0" ]]; then
+        mv pagemap_* ${CUR_PWD}/${RES_FOLDER}/pagemaps
+    else
+        rm pagemap_*
     fi
+    #
+    # if [[ "x${ITER}" != "x0" ]]; then
+    #     mv ${RES_FOLDER} ${GLOBAL_RES_FOLDER}/${ITER}/
+    # fi
     # create separate defrag iter logs
     chown -R user ${CUR_PWD}/
     echo "benchmark ended"
