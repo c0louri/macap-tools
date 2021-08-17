@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     }
     // memset 512MB per second for the 1st phase
     memset(addr_1, 1, size_1st);
-    sleep(5);
+    sleep(20);
     // 2nd phase: malloc for 80% of total space
     size_2nd = 0.8 * btotal;
     printf("2nd phase: allocate %lldMB\n", size_2nd >> 20);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     }
     // memset 1GB per second for the 2nd phase
 	memset(addr_2, 2, size_2nd);
-	sleep(10);
+	sleep(30);
 	// 3rd phase: malloc for the rest of total space
 	size_3rd = 0.1 * btotal;
     printf("3rd phase: allocate %lldMB\n", size_3rd >> 20);
