@@ -2,25 +2,28 @@
 
 import sys
 import os
-#import matplotlib
+import matplotlib.pyplot as plt
 import copy
 import pandas as pd
+import numpy as np
 
-# benchmarks = ["liblinear", "XSBench", "micro"]
-# defrag_opts = ["nodef", "mark", "all"]
-# frag_opts = ["fresh", "frag"]
-# alloc_fails = [0, 1, 2, 4, 10, 20, 40, 128]
-
+# starting string of folder name: <bench>_[frag|fresh]_[cap|ranger|both]_[all|mark]_
 benchmarks = []
-defrag_opts = []
 frag_opts = []
+defrag_opts = []
+marked_opts = []
 alloc_fails = []
+iterations = []
+frag_cases = []
 
-col_names = ["ignored_alloc_fails", "#vmas", "#subvmas", "4k cap fails",
+cases = [] # both all 500, Ranger , Cap, etc
+
+#case : "<defrag_option, marked_option, all_fails"
+col_names = ["Case", "#vmas", "#subvmas", "4k cap fails",
             "2M cap fails", "Ranger successes","Ranger failures", "#32 ranges coverage",
-            "#64", "#128", "#ranges for 99% cov"]
+            "#64 ranges coverage", "#128 ranges coverage", "#ranges for 99% cov"]
 
-runs_dict = {}
+runs_dict = {} # key : (<run_case>, <bench_name>, <frag case>) <--- tuple of strings
 
 def num(s):
     try:
@@ -42,53 +45,39 @@ def get_stats_file_name(files_list):
 
 def get_bench_run_characteristics(filename):
     # 1st val: name of benchmark
-    # 2nd val: cap | mark | all | ranger (mark: defrag only pages marked as misplaced)
-    # 3rd val: frag | fresh
-    # 4th val: #alloc_2mb_fails
-    attrs = []
+    # 2nd val: frag | fresh (frag_opts)
+    # 3rd val: cap | ranger | both (defrag_opts)
+    # 4th val: all | mark (which pages will try to migrate)
+    # 5th val: #alloc_2mb_fails
+    # 6th val: name of runs (case) or maybe not existing
+    # 7th val: percentage of subhuge unmappings (fragmenter) -
+    #           percentage of remaining allocated memory (fragmenter)
     # save name of benchmark
-    bench_name = filename.split('_')[0]
-    attrs.append(bench_name)
-    if bench_name not in benchmarks:
-        benchmarks.append(bench_name)
-    # type of defrag
-    if "cap" in filename:
-        attrs.append("nodef")
-        if "cap" not in defrag_opts:
-            defrag_opts.append("cap")
-    else:
-        if "mark" in filename:
-            attrs.append("mark")
-            if "mark" not in defrag_opts:
-                defrag_opts.append("mark")
-        elif "ranger" in filename:
-            attrs.append("ranger")
-            if "ranger" not in defrag_opts:
-                defrag_opts.append("ranger")
-        else:
-            attrs.append("all")
-            if "all" not in defrag_opts:
-                defrag_opts.append("all")
-    # case of fragmentation
-    if "frag" in filename:
-        attrs.append("frag")
-        if "frag" not in frag_opts:
-            frag_opts.append("frag")
-    else:
-        # it was a fresh run
-        attrs.append("fresh")
-        if "fresh" not in frag_opts:
-            frag_opts.append("fresh")
-    # find #alloc_fails
-    num_alloc_fails = int(filename.split('_')[-2])
-    attrs.append(num_alloc_fails)
-    if num_alloc_fails not in alloc_fails:
-        alloc_fails.append(num_alloc_fails)
-        alloc_fails.sort()
-    return attrs
+    parts = filename.split('_')
+    #benchmark:
+    if parts[0] not in benchmarks:
+        benchmarks.append(parts[0])
+    #fragment cases:
+    if parts[1] not in frag_opts:
+        frag_opts.append(parts[1])
+    #defrag cases:
+    if parts[2] not in defrag_opts:
+        defrag_opts.append(parts[2])
+    #use or no of marking:
+    if parts[3] not in marked_opts:
+        marked_opts.append(parts[3])
+    #alloc fails:
+    if parts[4] not in alloc_fails:
+        alloc_fails.append(parts[4])
+    #run case:
+    if parts[5] not in iterations:
+        iterations.append(parts[5])
+    #frag cases:
+    if parts[-1] not in frag_cases:
+        frag_cases.append(parts[-1])
+    return parts
 
-
-def read_stats(filename):
+def read_cov_stats(filename): # finished
     print("reading ",filename)
     f_stats = open(filename, 'r')
     lines = f_stats.readlines()
@@ -119,7 +108,7 @@ def read_stats(filename):
     offset_stats, cov_stats = stats_list[stats_pos][0], stats_list[stats_pos][1]
     return cov_stats
 
-def read_counters_stats(filename):
+def read_counters_stats(filename): # finished
     f_counters = open(filename, 'r')
     lines = f_counters.readlines();
     def_succ = int(lines[0].split()[5])
@@ -128,33 +117,47 @@ def read_counters_stats(filename):
     def_fails_gb = def_fails * 4 / (1024*1024)
     cap_2m_fails = int(lines[3].split()[3])
     cap_4k_fails = int(lines[2].split()[3])
-    def_succ = str(def_succ) + " ({:.2f}GB)".format(def_succ_gb)
-    def_fails = str(def_fails) + " ({:.2f}GB)".format(def_fails_gb)
+    def_succ = str(def_succ) + " ({:.3f}GB)".format(def_succ_gb)
+    def_fails = str(def_fails) + " ({:.3f}GB)".format(def_fails_gb)
     return [cap_4k_fails, cap_2m_fails, def_succ, def_fails]
 
-def get_table(d, bench, defrag, frag):
+def get_table(d, iteration, bench, frag_case):
     table = []
-    nodef_row = ["nodef_0"]+d[(bench, "nodef", frag, 0)]
-    table.append(nodef_row)
-    for alloc_val in alloc_fails:
-        if (bench, defrag, frag, alloc_val) not in d.keys():
-            continue
-        table.append([alloc_val]+d[(bench, defrag, frag, alloc_val)])
+    for key, val in runs_dict.items():
+        if iteration == key[5] and bench == key[0] and frag_case == key[-1]:
+            defrag_case = key[2]
+            marked = key[3]
+            alloc_fails = key[4]
+            if defrag_case == "cap":
+                case = "CaPaging"+alloc_fails
+            elif defrag_case == "ranger":
+                case = "TRanger"
+            elif defrag_case == "both":
+                case = "Both" + " (" + marked + ") " + alloc_fails
+            else:
+                print("Unkwown defrag case!!")
+                exit(-1)
+            if case not in cases:
+                cases.append(case)
+            table.append([case] + val)
     return table
 
-def read_all_stats(path):
+def read_all_stats(path): #finished
     runs_dict = {}
     for root, dirs, files in os.walk(path):
         if not dir_contains_results(files):
             continue
-        filename = root+"/"+"counters_stats.txt"
-        cnt_stats = read_counters_stats(filename)
-        f_stats_name = get_stats_file_name(files)
         # find benchmark characteristics
-        attrs = get_bench_run_characteristics(f_stats_name)
-        # get stats from stats file
-        filename = root+"/"+f_stats_name
-        cov_stats = read_stats(filename)
+        folder_name = root.split('/')[-1]
+        print(folder_name)
+        attrs = get_bench_run_characteristics(folder_name)
+        # read counter stats
+        cnt_file_name = root+"/"+"counters_stats.txt"
+        cnt_stats = read_counters_stats(cnt_file_name)
+        # get stats from stats (from pagemap) file
+        f_stats_name = get_stats_file_name(files)
+        cov_stats_name = root+"/"+f_stats_name
+        cov_stats = read_cov_stats(cov_stats_name)
         table_row = cov_stats[0:2] + cnt_stats + cov_stats[2:]
         runs_dict[tuple(attrs)] = table_row
     return runs_dict
@@ -164,43 +167,107 @@ def print_table(table):
         for val in row[:-1]:
             print(val, end=', ')
         print(row[-1])
-    pd.set_option('display.max_columns', None)
-    df = pd.DataFrame(table, columns=col_names)
-    df = df.set_index(col_names[0])
-    print(df)
+    # pd.set_option('display.max_columns', None)
+    # df = pd.DataFrame(table, columns=col_names)
+    # df = df.set_index(col_names[0])
+    # print(df)
 
-
+# returns dictionary:
+#       { <fragcase> : { <benchmark> : {<iter>:table} }
 def print_all_tables(runs_dict, to_print=False):
-    tables = []
-    for bench in benchmarks:
-        for frag in frag_opts:
-            for defrag in defrag_opts:
-                if defrag == "nodef":
-                    continue
-                table = get_table(runs_dict, bench, defrag, frag)
+    tables = {}
+    # 1st col of table is runcase
+    for frag_case in frag_cases:
+        bench_dict = {}
+        for bench in benchmarks:
+            iter_tables = {}
+            for iteration in iterations:
+                table = get_table(runs_dict, iteration, frag_case, bench)
                 if to_print:
-                    print("{} {} {}".format(bench, frag, defrag))
+                    print("{} {} {}".format(iteration, frag_case, bench))
                     print_table(table)
-                tables.append(table)
+                iter_tables[iteration] = table
+            bench_dict[bench] = iter_tables
+        tables[frag_case] = bench_dict
     return tables
 
-# main part of script
+#####
+# FUNCTIONS for printing plots:
 
-if len(sys.argv) > 1:
-	path = sys.argv[1]
-else:
-	path = "."
+def print_all_plots(tables):
+    for key, iter_tables in tables.items():
+        frag_case, benchmark = key[0], key[1]
+        print_plots(benchmark, frag_case, iter_tables)
 
-runs_dict = read_all_stats(path)
-print(benchmarks)
-print(defrag_opts)
-print(frag_opts)
-print(col_names)
-if len(sys.argv) > 2:
-    bench = sys.argv[2]
-    defrag = sys.argv[3]
-    frag = sys.argv[4]
-    table = get_table(runs_dict, bench, defrag, frag)
-    print_table(table)
-else:
-    tables = print_all_tables(runs_dict, True)
+# creates:
+# { (stat_type, fragcase) : { run_case : [(benchmark, mean value)] } }
+# parameter tables:  { <fragcase> : { <benchmark> : {<iter>:table} }
+def print_plots(tables):
+    # tables: all runs for specific run_case and frag_case
+    final_dict = {}
+
+    for col_idx in range(-4, 0): # index of the showing collumn
+        # -4 -> 32 cov, -3 -> 64 cov, -2 -> 128 cov, -1 -> 99% perc
+        for frag_case, bench_tables in tables.items():
+
+            runcases_dict = {}
+            for bench, iter_tables in bench_tables.items():
+                bench_case_vals = {} # values of all iterations of all cases in specific benchmark
+                for iteration, run_stats in iter_tables.items():
+                    run_case = run_stats[0]
+                    stats_val = run_stats[col_idx]
+                    # update keys
+                    if run_case not in bench_case_vals.keys():
+                        bench_case_vals[run_case] = []
+                    else:
+                        bench_case_vals[run_case].append(stats_val)
+                # calculate mean value in runcase_vals dict
+                for case, vals in bench_case_vals.items():
+                    # bench_case_vals[case] = sum(vals) / len(vals)
+                    # geomean:
+                    bench_case_vals[case] = np.prod(vals) ** (1 / len(vals))
+                for case, mean_val in bench_case_vals.items():
+                    runcases_dict[case].append((bench, mean_val))
+            final_dict[(col_names[col_idx], frag_case)] = runcases_dict
+    # print all plots
+    for key, runcase_dict in final_dict.items():
+        stat, frag_case = key[0], key[1]
+
+        fig, ax = plt.subplots()
+        for runcase, bench_and_val in runcase_dict.items():
+            # benchmarks:
+            x = [tup[0] for tup in bench_and_val]
+            # values:
+            y = [tup[1] for tup in bench_and_val]
+            ax.plot(x, y, marker='o', label=runcase)
+        ax.legend(xlabel='% Memory Footprint', title=stat + " ({})".format(frag_case))
+        ax.grid(axis='y')
+        plt.show()
+
+
+####
+# main()
+def main():
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+    else:
+        path = "."
+
+    runs_dict = read_all_stats(path)
+    print(benchmarks)
+    print(defrag_opts)
+    print(frag_opts)
+    print(col_names)
+    if len(sys.argv) > 2:
+        runcase = sys.argv[2]
+        bench = sys.argv[3]
+        frag = sys.argv[4]
+        table = get_table(runs_dict, runcase, bench, frag)
+        print_table(table)
+    else:
+        tables = print_all_tables(runs_dict, True)
+        print_all_plots(tables)
+
+
+if __name__ == "__main__":
+    main()
