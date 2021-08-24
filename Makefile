@@ -24,5 +24,5 @@ hashjoin:
 clean:
 	-rm simple_run capaging memfrag
 	cd pagecollect && $(MAKE) clean
-	cd benchmarks/micro && rm micro
-	cd benchmarks/hashjoinproxy && rm hashjoin
+	-rm benchmarks/micro/micro
+	-rm benchmarks/hashjoinproxy/hashjoin

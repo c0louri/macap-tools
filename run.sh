@@ -54,10 +54,10 @@ elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
     echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
-    BENCH_RUN="/home/user/ppac-tools/micro/make micro 120G"
+    BENCH_RUN="/home/user/ppac-tools/benchmarks/micro/micro 120G"
     echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xhashjoin" ]]; then
-    BENCH_RUN="/home/user/ppac-tools/hashjoinproxy/hashjoin"
+    BENCH_RUN="/home/user/ppac-tools/benchmarks/hashjoinproxy/hashjoin"
     echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
