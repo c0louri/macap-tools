@@ -1,7 +1,7 @@
 CC=gcc
 CPP=g++
 .PHONY: pagecollect
-all: pagecollect simple_run capaging memfrag micro
+all: pagecollect simple_run capaging memfrag micro hashjoin
 
 pagecollect:
 	cd pagecollect && $(MAKE)
@@ -15,9 +15,14 @@ capaging: capaging.c
 memfrag: memfrag.c
 	$(CC) -o $@ $^
 
-micro: benchmarks/micro/microbench.c
-	$(CC) -o $@ $^
+micro:
+	cd benchmarks/micro && $(CC) -o $@ microbench.c
+
+hashjoin:
+	cd benchmarks/hashjoinproxy && ./compile.sh
 
 clean:
-	-rm simple_run capaging memfrag micro
+	-rm simple_run capaging memfrag
 	cd pagecollect && $(MAKE) clean
+	cd benchmarks/micro && rm micro
+	cd benchmarks/hashjoinproxy && rm hashjoin

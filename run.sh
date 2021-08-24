@@ -54,7 +54,10 @@ elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
     echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
-    BENCH_RUN="/home/user/ppac-tools/micro 120G"
+    BENCH_RUN="/home/user/ppac-tools/micro/make micro 120G"
+    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+elif [[ "x${BENCH}" == "xhashjoin" ]]; then
+    BENCH_RUN="/home/user/ppac-tools/hashjoinproxy/hashjoin"
     echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
@@ -74,8 +77,11 @@ if [[ "x${STATS_PERIOD}" == "x" ]]; then
     STATS_PERIOD=10
     if [[ "x${BENCH}" == "xliblinear" ]]; then
          STATS_PERIOD=60
-    fi
-    if [[ "x${BENCH}" == "xXSBench" ]]; then
+    elif [[ "x${BENCH}" == "xXSBench" ]]; then
+        STATS_PERIOD=10
+    elif [[ "x${BENCH}" == "xmicro" ]]; then
+        STATS_PERIOD=10
+    elif [[ "x${BENCH}" == "xhashjoin" ]]; then
         STATS_PERIOD=10
     fi
 fi
@@ -98,6 +104,10 @@ elif [[ "x${USE_DEFRAG}" == "xboth_syscall" ]]; then # using both, defrag is exe
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag_with_syscall"
     echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
     sysctl vm.kthread_defragd_disabled=1
+elif [[ "x${USE_DEFRAG}" == "xboth" ]]; then # using both, defrag is executed in a kthread
+    BENCH="${BENCH}_both"
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
+    sysctl vm.kthread_defragd_disabled=0
 elif [[ "x${USE_DEFRAG}" == "xranger_syscall" ]]; then # using only TRanger with syscalls
     BENCH="${BENCH}_ranger"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag_with_syscall"
@@ -107,10 +117,14 @@ elif [[ "x${USE_DEFRAG}" == "xranger" ]]; then # using only TRanger with syscall
     BENCH="${BENCH}_ranger"
     LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats --mem_defrag"
     sysctl vm.kthread_defragd_disabled=0
-else # using both, defrag is executed in a kthread
-    BENCH="${BENCH}_both"
-    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --capaging --defrag_online_stats --mem_defrag"
-    sysctl vm.kthread_defragd_disabled=0
+elif [[ "x${USE_DEFRAG}" == "xnone" ]]; then # using linux vanilla mechanism
+    LAUNCHER="${PROJECT_LOC}/simple_run --dumpstats --dumpstats_period ${STATS_PERIOD} --nomigration --defrag_online_stats"
+    BENCH="${BENCH}_none"
+    echo 999999 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    sysctl vm.kthread_defragd_disabled=1
+else
+    echo "Wrong parameter for mechanism selection"
+    exit 1
 fi
 
 if [[ "x${MARKED_DEFRAG}" == "xno" ]]; then
