@@ -49,13 +49,13 @@ FRAG_SIZE="195G" # ram 240gb
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
-    echo 30000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 15000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xXSBench" ]]; then
     BENCH_RUN="/home/user/benchmarks/XSBench/openmp-threading/XSBench -t ${CPUS} -s XL -l 64 -G unionized -p 500000"
-    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/micro/make micro 120G"
-    echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
+    echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xhashjoin" ]]; then
     BENCH_RUN="/home/user/ppac-tools/hashjoinproxy/hashjoin"
     echo 10000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
