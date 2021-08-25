@@ -57,7 +57,7 @@ elif [[ "x${BENCH}" == "xmicro" ]]; then
     BENCH_RUN="/home/user/ppac-tools/benchmarks/micro/micro 120G"
     echo 5000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 elif [[ "x${BENCH}" == "xhashjoin" ]]; then
-    BENCH_RUN="/home/user/ppac-tools/benchmarks/hashjoinproxy/hashjoin 1500000000" # total memory: ~119GB
+    BENCH_RUN="/home/user/ppac-tools/benchmarks/hashjoinproxy/hashjoin 1500000000 250000000" # total memory: ~119GB
     echo 15000 > /sys/kernel/mm/transparent_hugepage/kmem_defragd/scan_sleep_millisecs
 fi
 
@@ -82,7 +82,7 @@ if [[ "x${STATS_PERIOD}" == "x" ]]; then
     elif [[ "x${BENCH}" == "xmicro" ]]; then
         STATS_PERIOD=10
     elif [[ "x${BENCH}" == "xhashjoin" ]]; then
-        STATS_PERIOD=90
+        STATS_PERIOD=30
     fi
 fi
 
