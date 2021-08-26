@@ -53,6 +53,8 @@ int main(int argc, char *argv[])
                 btotal *= 1024;
             case '\0':
             case 'k':
+			case 'K':
+				btotal *= 1024;
                 break;
             case 'p':
             case 'P':
@@ -74,6 +76,7 @@ int main(int argc, char *argv[])
     // 1st phase: malloc for 10% of total space
     size_1st = 0.1 * btotal;
     printf("1st phase: allocate %lldMB\n", size_1st >> 20);
+	addr_1 = mmap(NULL, size_1st, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (use_huge) {
         if (madvise(addr_1, size_1st, MADV_HUGEPAGE) < 0) {
             perror("error");
@@ -95,6 +98,7 @@ int main(int argc, char *argv[])
     // 2nd phase: malloc for 80% of total space
     size_2nd = 0.8 * btotal;
     printf("2nd phase: allocate %lldMB\n", size_2nd >> 20);
+    addr_2 = mmap(NULL, size_2nd, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (use_huge) {
         if (madvise(addr_2, size_2nd, MADV_HUGEPAGE) < 0) {
             perror("error");
@@ -116,6 +120,7 @@ int main(int argc, char *argv[])
     // 3rd phase: malloc for the rest of total space
     size_3rd = 0.1 * btotal;
     printf("3rd phase: allocate %lldMB\n", size_3rd >> 20);
+	addr_3 = mmap(NULL, size_3rd, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (use_huge) {
         if (madvise(addr_3, size_3rd, MADV_HUGEPAGE) < 0) {
             perror("error");
