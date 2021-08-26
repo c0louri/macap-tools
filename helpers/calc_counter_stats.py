@@ -1,72 +1,22 @@
 #!/usr/bin/python3
 import sys
-""" template of counters_*.out:
-0 memdefrag_defrag 0
-1    memdefrag_scan 0
-2    memdefrag_dest_free_pages 0
-3    memdefrag_dest_anon_pages 0
-4 memdefrag_dest_file_pages 0
-5 memdefrag_dest_free_pages_failed 0
-6 memdefrag_dest_anon_pages_failed 0
-7 memdefrag_dest_file_pages_failed 0
-8 memdefrag_dest_nonlru_pages_failed 0
-9 memdefrag_dest_unmovable_pages_failed 0
-10 memdefrag_src_compound_pages_failed 0
-11 memdefrag_dst_compound_pages_failed 0
-12 memdefrag_src_split_hugepages 0
-13 memdefrag_dst_split_hugepages 0
-(obsolete) fails
-(new) out of bounds
-14 Capaging failure 4K (0-order) counters:
-15 INVALID_PFN:	0
-16 EXCEED_MEMORY:	0
-17 GUARD_PAGE:	0
-PCP_PAGE: 0
-OCCUPIED:	0
-BUDDY_OCCUPIED:	0
-WRONG_ALIGNMENT:	0
-EXCEED_ZONE:	0
-NOTHING_FOUND:	0
-BUDDY_GUARD:	0
-SUBBLOCK:	0
-PAGECACHE:	0
-26 NUMA:	0
-Capaging failure 2M (9-order) counters:
-28 INVALID_PFN:	0
-EXCEED_MEMORY:	0
-GUARD_PAGE:	0
-PCP_PAGE: 0
-OCCUPIED:	0
-BUDDY_OCCUPIED:	0
-WRONG_ALIGNMENT:	0
-EXCEED_ZONE:	0
-NOTHING_FOUND:	0
-BUDDY_GUARD:	0
-SUBBLOCK:	0
-PAGECACHE:	0
-NUMA:	0
-"""
+
+cap_4k_fails_start_line = 16
+cap_2m_fails_start_line = 30
+cap_4k_succ_start_line = 44
+cap_2m_succ_start_line = 50
+thp_collapse_start_line = 56
 
 def parse_counter_file(file_name):
     f = open(file_name, 'r')
     lines = f.readlines()
     lines = [line.rstrip('\n') for line in lines]
-    cap_4k_fails_start_line = 15
-    cap_2m_fails_start_line = 29
-
-    # below code is because some counters* file have one more line
-    has_total_fails_line = False
-    for line in lines:
-        if "memdefrag_fails" in line:
-            cap_4k_fails_start_line += 1
-            cap_2m_fails_start_line += 1
-        if "dst_out_of_bounds" in line:
-            cap_4k_fails_start_line += 1
-            cap_2m_fails_start_line += 1
-
+    # save lines apart
     defrag_lines = lines[0 : cap_4k_fails_start_line-1]
-    cap_4k_fails_lines = lines[cap_4k_fails_start_line : cap_4k_fails_start_line+13]
-    cap_2m_fails_lines = lines[cap_2m_fails_start_line : cap_2m_fails_start_line+13]
+    cap_4k_fails_lines = lines[cap_4k_fails_start_line : cap_2m_fails_start_line-1]
+    cap_2m_fails_lines = lines[cap_2m_fails_start_line : cap_4k_succ_start_line-1]
+    cap_4k_succ_lines = lines[cap_4k_succ_start_line : cap_2m_succ_start_line-1]
+    cap_2m_succ_lines = lines[cap_2m_succ_start_line : thp_collapse_start_line-1]
     # defrag
     defrag_vals = [int(line.split()[1]) for line in defrag_lines]
     dst_free_tries, dst_anon_tries, dst_file_tries = defrag_vals[2:5]
@@ -84,8 +34,12 @@ def parse_counter_file(file_name):
     total_cap_4k_fails = sum([int(line.split()[1]) for line in cap_4k_fails_lines])
     # calculate total 2m failures
     total_cap_2m_fails = sum([int(line.split()[1]) for line in cap_2m_fails_lines])
-
-    return defrag_success, defrag_fails, total_cap_4k_fails, total_cap_2m_fails
+    # calculate total 4k successes
+    total_cap_4k_succ = sum([int(line.split()[1]) for line in cap_4k_succ_lines])
+    # calculate total 2m successes
+    total_cap_2m_succ = sum([int(line.split()[1]) for line in cap_2m_succ_lines])
+    return defrag_success, defrag_fails, total_cap_4k_fails, total_cap_2m_fails, \
+            total_cap_4k_succ, total_cap_2m_succ
 
 
 def main():
@@ -95,21 +49,27 @@ def main():
         exit()
     start_file = args[1]
     end_file = args[2]
-    def_succ_st, def_fails_st, cap_4k_fails_st, cap_2m_fails_st = parse_counter_file(start_file)
-    def_succ_end, def_fails_end, cap_4k_fails_end, cap_2m_fails_end = parse_counter_file(end_file)
-    def_succ_diff = def_succ_end - def_succ_st
-    def_fails_diff = def_fails_end - def_fails_st
-    cap_4k_fails_diff = cap_4k_fails_end - cap_4k_fails_st
-    cap_2m_fails_diff = cap_2m_fails_end - cap_2m_fails_st
+    start_stats = parse_counter_file(start_file)
+    end_stats = parse_counter_file(end_file)
+    def_succ_diff = end_stats[0] - start_stats[0]
+    def_fails_diff = end_stats[1] - start_stats[1]
+    cap_4k_fails_diff = end_stats[2] - start_stats[2]
+    cap_2m_fails_diff = end_stats[3] - start_stats[3]
+    cap_4k_succ_diff = end_stats[4] - start_stats[4]
+    cap_2m_succ_diff = end_stats[5] - start_stats[5]
+    # convert to GB
     def_fails_diff_gb = def_fails_diff*4 / (1024*1024)
     def_succ_diff_gb = def_succ_diff*4 / (1024*1024)
     cap_4k_fails_diff_gb = cap_4k_fails_diff*4 / (1024*1024)
     cap_2m_fails_diff_gb = cap_2m_fails_diff*2 / (1024)
-    #print("{}, {}, {}, {}".format(def_succ_diff, def_fails_diff, cap_4k_fails_diff, cap_2m_fails_diff))
+    cap_4k_succ_diff_gb = cap_4k_succ_diff*4 / (1024*1024)
+    cap_2m_succ_diff_gb = cap_2m_succ_diff*2 / (1024)
     print("Defrag successes (in 4K pages): {} ({:.4f}GB)".format(def_succ_diff, def_succ_diff_gb))
     print("Defrag failures (in 4K pages): {} ({:.4f}GB)".format(def_fails_diff, def_fails_diff_gb))
     print("Cap 4k fails: {} ({:.4f}GB)".format(cap_4k_fails_diff, cap_4k_fails_diff_gb))
     print("Cap 2m fails: {} ({:.4f}GB)".format(cap_2m_fails_diff, cap_2m_fails_diff_gb))
+    print("Cap 4k successes: {} ({:.4f}GB)".format(cap_4k_succ_diff, cap_4k_succ_diff_gb))
+    print("Cap 2m successes: {} ({:.4f}GB)".format(cap_2m_succ_diff, cap_2m_succ_diff_gb))
 
 if __name__ == "__main__":
     main()
