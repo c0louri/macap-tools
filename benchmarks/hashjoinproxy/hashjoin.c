@@ -5,9 +5,9 @@
 
 #include "murmur3.h"
 
-#ifdef _OPENMP
+// #ifdef _OPENMP
 #include <omp.h>
-#endif
+// #endif
 
 #define ALIGNMET (8UL << 30)
 #include <string.h>
@@ -102,9 +102,7 @@ main(int argc, char *argv[])
   size_t matches = 0;
   size_t loaded = 0;
 
-  #ifdef _OPENMP
   #pragma omp parallel for
-  #endif
   for (size_t i = 0; i < nlookups; i++) {
     uint64_t hash[2];                /* Output for the hash */
     size_t idx = i % DEFAULT_NKEYS;

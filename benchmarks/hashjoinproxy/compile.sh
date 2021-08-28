@@ -1,4 +1,4 @@
-gcc -c murmurhash.c
-gcc -c hashjoin.c
-gcc hashjoin.o  murmurhash.o -o hashjoin
+gcc -fopenmp -c murmurhash.c
+gcc -fopenmp -c hashjoin.c
+gcc -fopenmp hashjoin.o  murmurhash.o -o hashjoin
 rm *.o
