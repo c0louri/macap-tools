@@ -439,13 +439,13 @@ def print_time_plots(tables):
     all_runs = all_runs_in_list(tables)
     df = pd.DataFrame(all_runs, columns=["Frag case", "Benchmark", "Runcase"] + col_names[1:])
     # print time bars and speedup
-    cols_to_keep = ["Frag case", "Benchmark", "Runcase"] + time_col_names[:3]
+    cols_to_keep = ["Frag case", "Benchmark", "Runcase"] + time_col_names
     new_df = df[cols_to_keep]
     bench_group_df = new_df.groupby("Benchmark")
     # width of each vertical bar
     bar_width = 0.4
     # for x axis
-    X_axis_labels = time_col_names[:3]
+    X_axis_labels = time_col_names
     X_axis = np.arange(len(X_axis_labels)) * 2
     X_st = X_axis - bar_width
     for bench, bench_group in bench_group_df:
