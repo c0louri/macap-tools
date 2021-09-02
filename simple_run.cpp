@@ -39,6 +39,7 @@ enum {
 	OPT_DEFRAG_FREQ_FACTOR,
 	OPT_CHILD_STDIN,
 	OPT_CHILD_STDOUT,
+    OPT_PERF_INTERV,
 };
 
 int syscall_mem_defrag = 335;
@@ -48,6 +49,8 @@ unsigned cycles_high, cycles_low;
 unsigned cycles_high1, cycles_low1;
 RESUSE time_stats;
 pid_t child;
+pid_t perf_pid;
+
 // for measuring exec time of defrag and pagecollect
 volatile unsigned long total_defrag_us = 0;
 volatile unsigned long total_collect_us = 0;
@@ -65,6 +68,7 @@ int print_raw_hist_data = 0;
 // int vm_stats = 0;
 int defrag_online_stats = 0;
 unsigned int sleep_ms_defrag = 0;
+int perf_flamegraph = 0;
 int defrag_freq_factor = 1;
 
 long scan_process_memory(pid_t pid, char *buf, int len, int action)
@@ -296,6 +300,9 @@ void child_exit(int sig, siginfo_t *siginfo, void *context)
 			time_stats.ru.ru_maxrss);
 	fflush(stderr);
 
+    if (perf_pid)
+        kill(perf_pid, SIGINT);
+
 	info_done = 1;
 }
 
@@ -324,6 +331,10 @@ int main(int argc, char** argv)
 		{"defrag_online_stats", no_argument, &defrag_online_stats, 1},
 		{"child_stdin", required_argument, 0, OPT_CHILD_STDIN},
 		{"child_stdout", required_argument, 0, OPT_CHILD_STDOUT},
+        {"perf_loc", required_argument, 0, 'l'},
+		{"perf_events", required_argument, 0, 'P'},
+		{"perf_flamegraph", no_argument, &perf_flamegraph, 1},
+		{"perf_interv", required_argument, 0, OPT_PERF_INTERV},
 		// {"sleep_ms_defrag", required_argument, 0, 'S'},
 		// {"relocate_agent_mem", no_argument, &relocate_agent_mem, 1},
 		{0,0,0,0}
@@ -341,6 +352,11 @@ int main(int argc, char** argv)
 	int child_stdin_fd = 0;
 	int child_stdout_fd = 0;
 	int prefer_mem_mode = 0;
+
+    char perf_events[512] = {0};
+    char perf_loc[256] = {0};
+    int perf_interv = 0;
+    int use_perf = 0;
 
 	parent_mask = numa_allocate_nodemask();
 
@@ -397,6 +413,13 @@ int main(int argc, char** argv)
 			case OPT_DEFRAG_FREQ_FACTOR:
 				defrag_freq_factor = atoi(optarg);
 				break;
+			case 'P':
+				strncpy(perf_events, optarg, 512);
+				break;
+			case 'l':
+				strncpy(perf_loc, optarg, 255);
+				use_perf = 1;
+				break;
 			case OPT_CHILD_STDIN:
 				child_stdin_fd = open(optarg, O_RDONLY);
 				if (!child_stdin_fd) {
@@ -410,6 +433,9 @@ int main(int argc, char** argv)
 					perror("child stdout file open error\n");
 					exit(-1);
 				}
+				break;
+			case OPT_PERF_INTERV:
+				perf_interv = atoi(optarg);
 				break;
 			// case 'S':
 			// 	sleep_ms_defrag = atoi(optarg);
@@ -524,6 +550,59 @@ int main(int argc, char** argv)
 	// 	numa_bitmask_setbit(parent_mask, 0);
 	// 	numa_set_membind(parent_mask);
 	// }
+
+    if (use_perf) {
+		char child_pid[8] = {0};
+
+		/*sprintf(perf_cmd, "/gauls/kernels/linux/tools/perf/perf stat -e %s -p %d -o perf_results", perf_events, child);*/
+		sprintf(child_pid, "%d", child);
+
+		perf_pid = fork();
+		if (perf_pid == 0) {
+			if (perf_flamegraph) {
+				if (strlen(perf_loc))
+					execl(perf_loc, "perf", "record",
+						  "-F", "99",
+						  "-g",
+						  "-p", child_pid,
+						  "-o", "perf_results", (char *)NULL);
+				else
+					execl("perf", "perf", "record",
+						  "-F", "99",
+						  "-g",
+						  "-p", child_pid,
+						  "-o", "perf_results", (char *)NULL);
+			} else {
+				if (perf_interv) {
+					char interv[8] = {0};
+
+					sprintf(interv, "%d", perf_interv);
+					if (strlen(perf_loc))
+						execl(perf_loc, "perf", "stat",
+							  "-e", perf_events, "-p", child_pid,
+							  "-I", interv,
+							  "-o", "perf_results", (char *)NULL);
+					else
+						execl("perf", "perf", "stat",
+							  "-e", perf_events, "-p", child_pid,
+							  "-I", interv,
+							  "-o", "perf_results", (char *)NULL);
+				} else {
+					if (strlen(perf_loc))
+						execl(perf_loc, "perf", "stat",
+							  "-e", perf_events, "-p", child_pid,
+							  "-o", "perf_results", (char *)NULL);
+					else
+						execl("perf", "perf", "stat",
+							  "-e", perf_events, "-p", child_pid,
+							  "-o", "perf_results", (char *)NULL);
+				}
+			}
+
+			perror("perf execution error\n");
+			exit(-1);
+		}
+	}
 
 	if (node_mask)
 		numa_bitmask_free(node_mask);

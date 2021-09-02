@@ -1,5 +1,10 @@
 #!/bin/bash
 
+FLAMEGRAPH_LOC=/home/user/FlameGraph
+if [[ "x${PERF_GRAPH}" == "x"]]; then
+    PERF_GRAPH="yes"
+fi
+
 FRAG_UNFIN=true
 trap "FRAG_UNFIN=false" SIGUSR2
 
@@ -138,6 +143,10 @@ else
     BENCH="${BENCH}_mark"
 fi
 
+if [[ "x${PERF_FLAMEGRAPH}" == "xyes" ]]; then
+    LAUNCHER="${LAUNCHER} -l --perf_flamegraph"
+fi
+
 #PREFER MEM MODE
 if [[ "x${PREFER_MEM_MODE}" == "xyes" ]]; then
 	NUMACTL_CMD="${LAUNCHER} -N 0 --prefer_memnode 0"
@@ -248,6 +257,18 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
         python3 helpers/parse_defrag_results.py defrag_online_stats_0 > defrag_compact_stats
         mv defrag_compact_stats ${CUR_PWD}/${RES_FOLDER}/
     fi
+
+    # post run actions for PERF flamegraph
+    if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
+		perf script -i perf_results | ${FLAMEGRAPH_LOC}/stackcollapse-perf.pl > out.perf-folded
+		${FLAMEGRAPH_LOC}/flamegraph.pl out.perf-folded > flamegraph.svg
+		mv perf_results ${CUR_PWD}/${RES_FOLDER}/
+		mv flamegraph.svg ${CUR_PWD}/${RES_FOLDER}/flamegraph.svg
+	fi
+
+	if [ -f perf_results ]; then
+		mv perf_results ${CUR_PWD}/${RES_FOLDER}/
+	fi
 
     # move pagemap files and counters
     mv defrag_online_stats_* ${CUR_PWD}/${RES_FOLDER}/

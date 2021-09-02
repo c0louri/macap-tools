@@ -268,6 +268,8 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
     total_not_pres_p_in_subvmas = 0
     total_good_thp = 0
     total_bad_thp = 0
+    total_thp = 0
+    total_4k = 0
     for entry in pagemap:
         vaddr, pfn, offset, num_pages, is_right_placed = entry
         # if not present, continue to next entry
@@ -275,6 +277,10 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
             continue
         vma = find_vma(VMAs, vaddr)
         total_pages += num_pages
+        if num_pages == 512:
+            total_thp += 1
+        elif num_pages == 1:
+            total_4k += 1
         if len(vma.subVMAs) > 0:
             total_pres_p_in_subvmas += num_pages
         # if no subvmas in vma and if it should check only vaddr in vmas with subvmas,
@@ -306,7 +312,7 @@ def create_offset_map(pagemap, VMAs, check_only_vmas_with_subvmas):
             pages_bad_offset[1].append(vaddr)
             if num_pages == 512:
                 total_bad_thp += 1
-    return offsets, pages_good_offset, pages_bad_offset, total_pres_p_in_subvmas, total_pages
+    return offsets, pages_good_offset, pages_bad_offset, total_pres_p_in_subvmas, total_pages, total_thp, total_4k
 
 
 def parse_rawcov_dict(dict_lines):
@@ -386,7 +392,7 @@ def main():
     vma_lines, pagemap_lines, cov_lines = read_pagecollect_file(file_from_cpp)
     VMAs = create_all_vma(vma_lines, True)
     custom_pagemap, cnt_pres = read_custom_pagemap(pagemap_lines, VMAs, False)
-    offsets, good_p, bad_p, total_pres_svma, total_pages = create_offset_map(custom_pagemap, VMAs, True)
+    offsets, good_p, bad_p, total_pres_svma, total_pages, total_thp, total_4k = create_offset_map(custom_pagemap, VMAs, True)
     num_vmas = len(VMAs)
     num_distinct_subvmas, distinct_subvmas = get_total_distinct_subvmas(VMAs)
     cov_stats = parse_coverage(cov_lines)
@@ -401,7 +407,8 @@ def main():
     elif case == "only_offset":
         print('{}, {}, {}, {}'.format(total_pages, total_pres_svma, good_p[0], bad_p[0]))
     elif case == "complete_results":
-        print('Offsets_stats: {}, {}, {}, {}'.format(total_pages, total_pres_svma, good_p[0], bad_p[0]))
+        print('Offsets_stats: {}, {}, {}, {}, {}, {}'.format(
+            total_pages, total_pres_svma, good_p[0], bad_p[0], total_thp, total_4k))
         print('{}, {}, {}, {}, {}, {}'.format( \
             num_vmas, num_distinct_subvmas, \
             cov_32, cov_64, cov_128, cov_99p_ranges))

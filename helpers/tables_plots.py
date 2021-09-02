@@ -26,7 +26,7 @@ cov_col_names = ["#VMAs", "#SubVMAs", "#32 Ranges Coverage",
 
 cnt_col_names = ["4k CaPaging Successes", "2M CaPaging Successes",
                  "4k CAPaging Fails", "2M CAPaging Fails",
-                 "Ranger Successes", "Ranger Fails"]
+                 "Ranger Successes", "Ranger Fails, THP pages, 4K pages"]
 
 time_col_names = ["Real time(ms)", "User time(ms)", "System time(ms)", "vCPU time(ms)"]
 
@@ -93,6 +93,7 @@ def get_bench_run_characteristics(filename):
         frag_cases.append(parts[-1])
     return parts
 
+# returns cov_stats and [thp_pages, 4k_pages]
 def read_cov_stats(filename): # finished
     # print("reading ",filename)
     f_stats = open(filename, 'r')
@@ -117,12 +118,13 @@ def read_cov_stats(filename): # finished
     i = len(stats_list)-1
     while i >= 0:
         total_pages = stats_list[i][0][0]
-        if total_pages > max_total_pages:
+        #if abs(max_total_pages - total_pages) > 0.01 * total_pages:
+        if total_pages > (max_total_pages + 0.02 * max_total_pages):
             max_total_pages = total_pages
             stats_pos = i
         i -= 1
     offset_stats, cov_stats = stats_list[stats_pos][0], stats_list[stats_pos][1]
-    return cov_stats
+    return cov_stats, offset_stats[-2:]
 
 # returns a list [real_time, user_time, sys_time, vcpu_time]
 # time is in milliseconds
@@ -144,6 +146,7 @@ def read_time_stats(filename):
     return [real_time, user_time, sys_time, vcpu_time]
 
 def read_counters_stats(filename):
+    print(filename)
     f_counters = open(filename, 'r')
     lines = f_counters.readlines()
     def_succ = int(lines[0].split()[5])
@@ -204,13 +207,14 @@ def read_all_stats(path): #finished
         stats_file_name = get_stats_file_name(files)
         if stats_file_name:
             cov_stats_name = root + "/" + stats_file_name
-            cov_stats = read_cov_stats(cov_stats_name)
+            cov_stats, thp_4k_pages = read_cov_stats(cov_stats_name)
         else:
             cov_stats = [0] * len(cov_col_names)
+            thp_4k_pages = [0, 0]
         # get time stats and max memory resident use
         f_cycles_name = root + "/" + get_cycles_file_name(files)
         time_stats = read_time_stats(f_cycles_name)
-        runs_dict[tuple(attrs)] = cov_stats + cnt_stats + time_stats
+        runs_dict[tuple(attrs)] = cov_stats + cnt_stats + thp_4k_pages + time_stats
     return runs_dict
 
 def print_table(table):
@@ -251,8 +255,8 @@ def get_mean_values(runs_dict, to_print=False):
                         runcases[row[0]].append(row[1:])
             for runcase, iter_vals in runcases.items():
                 print(bench, " ", frag_case, " ", runcase)
-                for row in iter_vals:
-                    print(row[-4:])
+                time_vals = [row[-4:] for row in iter_vals]
+                time_vals.sort(key=lambda x:x[0])
                 stats_num = len(iter_vals[0])
                 cov_stats_num = len(cov_col_names)
                 cnt_stats_num = len(cnt_col_names)
@@ -271,20 +275,25 @@ def get_mean_values(runs_dict, to_print=False):
                 # next for time stats:
                 # find iteration which is closest to the median of real time
 
-                # # real_times = [row[-4] for row in iter_vals]
-                # # mean_real_time = sum(real_times) / len(real_times)
-                # # closest_iter = 0
-                # # best_min_dist = abs(real_times[0] - mean_real_time)
-                # # for i, vcpu_time in enumerate(real_times[1:]):
-                # #     dist = abs(vcpu_time - mean_real_time)
-                # #     if dist < best_min_dist:
-                # #         best_min_dist = dist
-                # #         closest_iter = i
-                real_times = [(i, row[-4]) for i, row in enumerate(iter_vals)]
-                real_times.sort(key=lambda x : x[1])
-                middle = int(len(real_times) / 2)
-                closest_iter = real_times[middle][0]
-                print("Chosen: ", closest_iter)
+                # real_times = [row[-4] for row in iter_vals]
+                # mean_real_time = sum(real_times) / len(real_times)
+                # closest_iter = 0
+                # best_min_dist = abs(real_times[0] - mean_real_time)
+                # for i, vcpu_time in enumerate(real_times[1:]):
+                #     dist = abs(vcpu_time - mean_real_time)
+                #     if dist < best_min_dist:
+                #         best_min_dist = dist
+                #         closest_iter = i
+                # real_times = [(i, row[-4]) for i, row in enumerate(iter_vals)]
+                #time_vals.sort(key=lambda x : x[1])
+                middle = int((len(time_vals)) / 2)
+                closest_iter = middle
+                for i, row in enumerate(time_vals):
+                    if i != closest_iter:
+                        print(row)
+                    else:
+                        print(row, "  <---")
+                # print("Chosen: ", closest_iter)
                 # save time stats of the closest iteration
                 time_stats_st_index = cov_stats_num + cnt_stats_num
                 final_row[time_stats_st_index:] =  iter_vals[closest_iter][time_stats_st_index:]
@@ -400,13 +409,13 @@ def print_migr_plots(tables):
     all_runs = all_runs_in_list(tables)
     df = pd.DataFrame(all_runs, columns=["Frag case", "Benchmark", "Runcase"] + col_names[1:])
     # print time bars and speedup
-    cols_to_keep = ["Frag case", "Benchmark", "Runcase"] + cnt_col_names[4:]
+    cols_to_keep = ["Frag case", "Benchmark", "Runcase"] + cnt_col_names[4:6]
     new_df = df[cols_to_keep]
     bench_group_df = new_df.groupby("Benchmark")
     # width of each vertical bar
     bar_width = 0.4
     # for x axis
-    X_axis_labels = cnt_col_names[4:]
+    X_axis_labels = cnt_col_names[4:6]
     X_axis = np.arange(len(X_axis_labels)) * 3
     X_st = X_axis - (bar_width / 2)
     for bench, bench_group in bench_group_df:
@@ -474,6 +483,16 @@ def print_time_plots(tables):
             plt.savefig("plots/"+filename)
             plt.show()
 
+## input{ <fragcase> : { <benchmark> : { <runcase> : <mean values>} }
+def print_mean_tables(tables):
+    for fragcase, frag_dict in tables.items():
+        print("Frag case : ", fragcase)
+        for bench, bench_dict in frag_dict.items():
+            print(" Benchmark : ", bench)
+            for runcase, vals in bench_dict.items():
+                print("  {} : {}", runcase[0], runcase[1:])
+            print()
+
 
 ####
 # main()
@@ -491,6 +510,7 @@ def main():
     #     return
 
     tables = get_mean_values(runs_dict, False)
+    print_mean_tables(tables)
     # print_cov_plots(tables, frag=True)
     # print_allocs_plots(tables)
     # print_migr_plots(tables)
