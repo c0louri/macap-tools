@@ -143,7 +143,7 @@ else
     BENCH="${BENCH}_mark"
 fi
 
-if [[ "x${PERF_FLAMEGRAPH}" == "xyes" ]]; then
+if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
     LAUNCHER="${LAUNCHER} -l --perf_flamegraph"
 fi
 
