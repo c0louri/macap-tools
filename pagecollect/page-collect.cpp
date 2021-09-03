@@ -169,6 +169,16 @@ void print_range_hist(FILE *out, std::map<uint64_t, uint64_t, std::greater<uint6
 			current_coverage+= it->first * it->second;
 			//fprintf(out, "range_%s_hist: %ld %ld %0.2f %ld\n", outstring, it->first, it->second, 100*((float) cur_contiguity / total_present_pages));
 		}
+        // check if num_entries less than 32 or 64 or 128
+        if (num_entries <= 32)
+            _32_entries_coverage = current_coverage;
+        if (num_entries <= 64)
+            _64_entries_coverage = current_coverage;
+        if (num_entries <= 128)
+            _128_entries_coverage = current_coverage;
+        if (num_entries <= 256)
+            _256_entries_coverage = current_coverage;
+
 
 		fprintf(out, "total_%s_entries: %ld\n", outstring, num_entries);
 		fprintf(out, "total_%s_coverage: %ld (MB)\n", outstring, current_coverage * PAGE_SIZE / 1024/ 1024);

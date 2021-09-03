@@ -1,9 +1,11 @@
 #!/bin/bash
 
 FLAMEGRAPH_LOC=/home/user/FlameGraph
-if [[ "x${PERF_GRAPH}" == "x"]]; then
-    PERF_GRAPH="yes"
+# PERF_LOC=
+if [[ "x${PERF_GRAPH}" == "x" ]]; then
+    PERF_GRAPH="no"
 fi
+PERF_STATS="dtlb_load_misses.walk_completed"
 
 FRAG_UNFIN=true
 trap "FRAG_UNFIN=false" SIGUSR2
@@ -144,8 +146,9 @@ else
 fi
 
 if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
-    LAUNCHER="${LAUNCHER} -l --perf_flamegraph"
-fi
+    LAUNCHER="${LAUNCHER} -l ${PERF_LOC} --perf_flamegraph"
+elif [[ "x${PERF_STATS}" != "x" ]]; then
+    LAUNCHER="${LAUNCHER} -l ${PERF_LOC} -P ${PERF_STATS}"
 
 #PREFER MEM MODE
 if [[ "x${PREFER_MEM_MODE}" == "xyes" ]]; then

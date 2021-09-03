@@ -551,7 +551,7 @@ int main(int argc, char** argv)
 	// 	numa_set_membind(parent_mask);
 	// }
 
-    if (use_perf) {
+    if (use_perf || perf_flamegraph) {
 		char child_pid[8] = {0};
 
 		/*sprintf(perf_cmd, "/gauls/kernels/linux/tools/perf/perf stat -e %s -p %d -o perf_results", perf_events, child);*/
