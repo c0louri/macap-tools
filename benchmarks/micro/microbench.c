@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     memset(addr_2, 2, size_2nd);
     tmp_addr = (unsigned char *) addr_2;
     for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_2nd; j+=3)
+        for (unsigned long long j = 0; j < size_2nd; j+=5)
             tmp_addr[j] = j % 256;
     // sleep(30);
     // 3rd phase: malloc for the rest of total space
@@ -135,8 +135,8 @@ int main(int argc, char *argv[])
     // memset 1GB per second for the 3rd phase
     memset(addr_3, 3, size_3rd);
     tmp_addr = (unsigned char *) addr_3;
-    for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_3rd; j+=2)
+    for (int i = 0; i < 3; i++)
+        for (unsigned long long j = 0; j < size_3rd; j+=1)
             tmp_addr[j] = j % 256;
     // sleep(30);
 
