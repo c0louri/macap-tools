@@ -1,11 +1,10 @@
 #!/bin/bash
 
 FLAMEGRAPH_LOC=/home/user/FlameGraph
-# PERF_LOC=
+PERF_LOC=/home/user/ppac/tools/perf/perf
 if [[ "x${PERF_GRAPH}" == "x" ]]; then
     PERF_GRAPH="no"
 fi
-
 PERF_STATS="dtlb_load_misses.walk_completed,cycles"
 
 FRAG_UNFIN=true
@@ -54,7 +53,7 @@ SUB_HP_K=$8
 PERC_KEEP=$9
 FRAG_SIZE="195G" # ram 240gb
 
-PERF="no"
+PERF="yes"
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
@@ -149,9 +148,9 @@ fi
 
 if [[ "x${PERF}" == "xyes" ]]; then
     if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
-        LAUNCHER="${LAUNCHER} -l ${PERF_LOC} --perf_flamegraph"
+        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} --perf_flamegraph"
     elif [[ "x${PERF_STATS}" != "x" ]]; then
-        LAUNCHER="${LAUNCHER} -l ${PERF_LOC} -P ${PERF_STATS}"
+        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} -P ${PERF_STATS}"
     fi
 fi
 

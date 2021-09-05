@@ -111,14 +111,14 @@ int main(int argc, char *argv[])
         }
     }
     // memset 1GB per second for the 2nd phase
-    memset(addr_2, 2, size_2nd);
+    memset(addr_2, 200, size_2nd);
     tmp_addr = (unsigned char *) addr_2;
     for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_2nd; j+=5)
+        for (unsigned long long j = 0; j < size_2nd; j+= 4)
             tmp_addr[j] = j % 256;
     // sleep(30);
-    // 3rd phase: malloc for the rest of total space
-    size_3rd = 0.1 * btotal;
+    // 3rd phase: malloc for the rest of total space (same as 1st)
+    size_3rd = size_1st;
     printf("3rd phase: allocate %lldMB\n", size_3rd >> 20);
 	addr_3 = mmap(NULL, size_3rd, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (use_huge) {
@@ -133,12 +133,21 @@ int main(int argc, char *argv[])
         }
     }
     // memset 1GB per second for the 3rd phase
-    memset(addr_3, 3, size_3rd);
+    memset(addr_3, 3000, size_3rd);
     tmp_addr = (unsigned char *) addr_3;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 1; i++)
         for (unsigned long long j = 0; j < size_3rd; j+=1)
             tmp_addr[j] = j % 256;
     // sleep(30);
+
+    // final run over all ranges
+    unsigned char * addrs[3];
+    addrs[0] = (unsigned char *) addr_1;
+    addrs[1] = (unsigned char *) addr_2;
+    addrs[2] = (unsigned char *) addr_3;
+
+        for (unsigned long i = 0; i < size_2nd; i += 8)
+            addrs[1][i] = addrs[0][i % size_1st] * addrs[2][i % size_3rd];
 
     munmap(addr_1, size_1st);
     munmap(addr_2, size_2nd);
