@@ -3,6 +3,13 @@
 FRAG_UNFIN=true
 trap "FRAG_UNFIN=false" SIGUSR2
 
+FLAMEGRAPH_LOC=/home/user/FlameGraph
+PERF_LOC=/home/user/ppac/tools/perf/perf
+if [[ "x${PERF_GRAPH}" == "x" ]]; then
+    PERF_GRAPH="no"
+fi
+PERF_STATS="dtlb_load_misses.walk_completed"
+
 ## 1st -> CPUs
 ## 2nd -> alloc fails allowed
 ## 3rd -> yes or no for fragmenter use
@@ -46,6 +53,7 @@ SUB_HP_K=$8
 PERC_KEEP=$9
 FRAG_SIZE="195G" # ram 240gb
 
+PERF="yes"
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
@@ -113,6 +121,14 @@ if [[ "x${MARKED_DEFRAG}" == "xno" ]]; then
 else
     sysctl vm.defrag_only_misplaced=1
     BENCH="${BENCH}_mark"
+fi
+
+if [[ "x${PERF}" == "xyes" ]]; then
+    if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
+        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} --perf_flamegraph"
+    elif [[ "x${PERF_STATS}" != "x" ]]; then
+        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} --perf_events ${PERF_STATS}"
+    fi
 fi
 
 #PREFER MEM MODE
@@ -213,6 +229,18 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     cat /proc/capaging_contiguity_map > cmap_end.out
     # calc counters of CAP, defrag for more complete stats
     python3 helpers/calc_counter_stats.py counters_start.out counters_end.out > counters_stats.txt
+
+    # post run actions for PERF flamegraph
+    if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
+		perf script -i perf_results | ${FLAMEGRAPH_LOC}/stackcollapse-perf.pl > out.perf-folded
+		${FLAMEGRAPH_LOC}/flamegraph.pl out.perf-folded > flamegraph.svg
+		mv perf_results ${CUR_PWD}/${RES_FOLDER}/
+		mv flamegraph.svg ${CUR_PWD}/${RES_FOLDER}/flamegraph.svg
+	fi
+
+	if [ -f perf_results ]; then
+		mv perf_results ${CUR_PWD}/${RES_FOLDER}/
+	fi
 
     # move pagemap files and counters
     mv counters* ${CUR_PWD}/${RES_FOLDER}/

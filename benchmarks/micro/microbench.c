@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     memset(addr_1, 1, size_1st);
     tmp_addr = (unsigned char *) addr_1;
     for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_1st; j += 3)
+        for (unsigned long long j = 0; j < size_1st; j += 2)
             tmp_addr[j] = j % 256;
     // sleep(20);
     // 2nd phase: malloc for 80% of total space
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     memset(addr_2, 200, size_2nd);
     tmp_addr = (unsigned char *) addr_2;
     for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_2nd; j+= 4)
+        for (unsigned long long j = 0; j < size_2nd; j+= 16)
             tmp_addr[j] = j % 256;
     // sleep(30);
     // 3rd phase: malloc for the rest of total space (same as 1st)
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
     memset(addr_3, 3000, size_3rd);
     tmp_addr = (unsigned char *) addr_3;
     for (int i = 0; i < 1; i++)
-        for (unsigned long long j = 0; j < size_3rd; j+=1)
+        for (unsigned long long j = 0; j < size_3rd; j+=2)
             tmp_addr[j] = j % 256;
     // sleep(30);
 
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     addrs[1] = (unsigned char *) addr_2;
     addrs[2] = (unsigned char *) addr_3;
 
-        for (unsigned long i = 0; i < size_2nd; i += 8)
+        for (unsigned long i = 0; i < size_2nd; i += 64)
             addrs[1][i] = addrs[0][i % size_1st] * addrs[2][i % size_3rd];
 
     munmap(addr_1, size_1st);

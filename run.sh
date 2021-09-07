@@ -5,7 +5,7 @@ PERF_LOC=/home/user/ppac/tools/perf/perf
 if [[ "x${PERF_GRAPH}" == "x" ]]; then
     PERF_GRAPH="no"
 fi
-PERF_STATS="dtlb_load_misses.walk_completed,cycles"
+PERF_STATS="dtlb_load_misses.walk_completed"
 
 FRAG_UNFIN=true
 trap "FRAG_UNFIN=false" SIGUSR2
@@ -53,7 +53,7 @@ SUB_HP_K=$8
 PERC_KEEP=$9
 FRAG_SIZE="195G" # ram 240gb
 
-PERF="yes"
+PERF="no"
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"
@@ -150,7 +150,7 @@ if [[ "x${PERF}" == "xyes" ]]; then
     if [[ "x${PERF_GRAPH}" == "xyes" ]]; then
         LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} --perf_flamegraph"
     elif [[ "x${PERF_STATS}" != "x" ]]; then
-        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} -P ${PERF_STATS}"
+        LAUNCHER="${LAUNCHER} --perf_loc ${PERF_LOC} --perf_events ${PERF_STATS}"
     fi
 fi
 
