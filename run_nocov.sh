@@ -5,9 +5,7 @@ trap "FRAG_UNFIN=false" SIGUSR2
 
 FLAMEGRAPH_LOC=/home/user/FlameGraph
 PERF_LOC=/home/user/ppac/tools/perf/perf
-if [[ "x${PERF_GRAPH}" == "x" ]]; then
-    PERF_GRAPH="no"
-fi
+PERF_GRAPH="no"
 PERF_STATS="dtlb_load_misses.walk_completed"
 
 ## 1st -> CPUs
@@ -52,8 +50,16 @@ ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
 FRAG_SIZE="195G" # ram 240gb
+PERF_TYPE=$10 ## no -> no perf, graph -> perf graph, stat -> perf stat
 
-PERF="yes"
+if [[ "x${PERF_TYPE}" == "xgraph" ]]; then
+    PERF="yes"
+    PERF_GRAPH="yes"
+elif [[ "x${PERF_TYPE}" == "xstat" ]]; then
+    PERF="yes"
+else
+    PERF="no"
+fi
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
     BENCH_RUN="/home/user/benchmarks/liblinear/liblinear-2.43/train /home/user/benchmarks/liblinear/kdd12.tr"

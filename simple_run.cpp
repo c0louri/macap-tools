@@ -563,14 +563,14 @@ int main(int argc, char** argv)
 				if (strlen(perf_loc))
 					execl(perf_loc, "perf", "record",
 						  "-F", "99",
-						  "-g",
-						  "-p", child_pid,
+                          "-a", "-g",
+						//   "-p", child_pid,
 						  "-o", "perf_results", (char *)NULL);
 				else
 					execl("perf", "perf", "record",
 						  "-F", "99",
-						  "-g",
-						  "-p", child_pid,
+						  "-a", "-g",
+						//   "-p", child_pid,
 						  "-o", "perf_results", (char *)NULL);
 			} else {
 				if (perf_interv) {
