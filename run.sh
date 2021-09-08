@@ -3,7 +3,9 @@
 FLAMEGRAPH_LOC=/home/user/FlameGraph
 PERF_LOC=/home/user/ppac/tools/perf/perf
 PERF_GRAPH="no"
-PERF_STATS="dtlb_load_misses.walk_completed"
+#PERF_STATS="dtlb_load_misses.walk_completed"
+PERF_STATS="cycles,cycles:u,cpu/event=0x08,umask=0x10,cmask=0x01/"
+#PERF_STATS="cpu/event=0x08,umask=0x10,cmask=0x0"
 
 FRAG_UNFIN=true
 trap "FRAG_UNFIN=false" SIGUSR2
@@ -50,15 +52,22 @@ ITER=$7
 SUB_HP_K=$8
 PERC_KEEP=$9
 FRAG_SIZE="195G" # ram 240gb
-PERF_TYPE=$10 ## no -> no perf, graph -> perf graph, stat -> perf stat
+PERF_TYPE=${10} ## no -> no perf, graph -> perf graph, stat -> perf stat
 
 if [[ "x${PERF_TYPE}" == "xgraph" ]]; then
     PERF="yes"
     PERF_GRAPH="yes"
+    echo "flamegraph"
 elif [[ "x${PERF_TYPE}" == "xstat" ]]; then
     PERF="yes"
+    echo "perf stat"
 else
     PERF="no"
+fi
+
+if [[ "x${PERF}" == "xyes" ]]; then
+    ${PERF_LOC} stat -e cycles &
+    DUMMY_PERF_PID=$!
 fi
 
 if [[ "x${BENCH}" == "xliblinear" ]]; then
@@ -253,6 +262,11 @@ for FAILS in $FAILED_ALLOCS_AFTER; do
     if [[ "x$USE_MEMFRAG" == "xyes" ]]; then
         kill -USR1 $FRAG_PID
     fi
+
+    if [[ "x${PERF}" == "xyes" ]]; then
+        kill -9 $DUMMY_PERF_PID
+    fi
+
     echo "Printing stats..."
     # collect stats from pagemap files
     ./get_stats.sh complete_results > ${CUR_PWD}/${RES_FOLDER}/${BENCH_CONF}_stats.txt
